@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Mobilization Dashboard</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; font-family: 'Avenir Next', 'Segoe UI', Arial, sans-serif; }
+
+    /* ── Header ── */
+    .header {
+      background: #C41E3A;
+      color: #fff;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      z-index: 30;
+      position: relative;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    .header-title { font-size: 18px; font-weight: 800; letter-spacing: -0.2px; }
+    .header-sub { font-size: 12px; font-weight: 400; opacity: 0.75; margin-left: 2px; }
+
+    /* ── Layout ── */
+    .app-body {
+      display: flex;
+      height: calc(100% - 52px);
+    }
+
+    /* ── Filter Panel ── */
+    .filter-panel {
+      width: 260px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 20;
+    }
+    .filter-section {
+      padding: 16px 16px 0;
+    }
+    .filter-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+    .filter-group {
+      margin-bottom: 14px;
+    }
+    .filter-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    .filter-select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #fff;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .filter-select:focus { outline: none; border-color: #C41E3A; }
+    .filter-select:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
+
+    /* Layer toggles */
+    .layer-toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .layer-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      font-size: 12px;
+      color: #333;
+    }
+    .layer-toggle:hover { border-color: #C41E3A; background: #fdf5f6; }
+    .layer-toggle input[type="checkbox"] { accent-color: #C41E3A; cursor: pointer; }
+    .layer-toggle.single-layer { font-size: 12px; color: #666; font-style: italic; }
+
+    .divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0 14px; }
+
+    .btn-clear {
+      display: block;
+      width: calc(100% - 32px);
+      margin: 0 16px 16px;
+      padding: 9px;
+      background: #fff;
+      border: 1px solid #C41E3A;
+      border-radius: 4px;
+      color: #C41E3A;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .btn-clear:hover { background: #C41E3A; color: #fff; }
+
+    .filter-count {
+      margin: 0 16px 8px;
+      font-size: 12px;
+      color: #888;
+    }
+    .filter-count span { font-weight: 700; color: #C41E3A; }
+
+    /* ── Map ── */
+    #map-container { flex: 1; position: relative; }
+    #viewDiv { width: 100%; height: 100%; }
+
+    /* ── Loading overlay ── */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      gap: 16px;
+    }
+    .loading-overlay.hidden { display: none; }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #C41E3A;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: #555; }
+
+    /* ── Status badge ── */
+    .status-badge {
+      position: absolute;
+      bottom: 12px;
+      left: 16px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 11px;
+      color: #888;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* ── Skeleton loaders ── */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: 4px;
+      height: 32px;
+      width: 100%;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">Community Mobilization</div>
+  </div>
+  <div class="header-sub">Dashboard</div>
+</div>
+
+<div class="app-body">
+
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-section">
+      <div class="filter-section-title">Layers</div>
+      <div id="layer-toggles" class="layer-toggle-list">
+        <div class="skeleton"></div>
+      </div>
+    </div>
+
+    <div class="filter-section" style="padding-top: 14px;">
+      <hr class="divider">
+      <div class="filter-section-title">Filters</div>
+
+      <div class="filter-group">
+        <label class="filter-label" for="sel-region">Region</label>
+        <select id="sel-region" class="filter-select" disabled>
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label" for="sel-chapter">Chapter</label>
+        <select id="sel-chapter" class="filter-select" disabled>
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label" for="sel-county">County</label>
+        <select id="sel-county" class="filter-select" disabled>
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label" for="sel-city">City / Municipality</label>
+        <select id="sel-city" class="filter-select" disabled>
+          <option value="">Loading...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filter-count" id="filter-count" style="display:none">
+      Showing <span id="count-num">—</span> features
+    </div>
+
+    <button class="btn-clear" id="btn-clear">Clear All Filters</button>
+  </div>
+
+  <!-- Map -->
+  <div id="map-container">
+    <div id="viewDiv"></div>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loadingText">Authenticating...</div>
+    </div>
+    <div class="status-badge" id="status-badge" style="display:none"></div>
+  </div>
+
+</div>
+
+<!-- OAuth callback handler — runs before main app -->
+<script>
+  var _isOAuthCallback = false;
+  var hash = window.location.hash;
+  if (hash && hash.indexOf('access_token') !== -1) {
+    _isOAuthCallback = true;
+    var params = {};
+    hash.replace(/^#/, '').split('&').forEach(function(p) {
+      var kv = p.split('='); params[kv[0]] = decodeURIComponent(kv[1] || '');
+    });
+    var _t = params['access_token'];
+    if (_t) {
+      // Pass token to opener
+      try { window.opener.postMessage({ type: 'arcgis_oauth_token', token: _t }, '*'); } catch(e) {}
+      // Also set on opener directly (same-origin)
+      try { window.opener._arcgisToken = _t; } catch(e) {}
+    }
+    window.close();
+  }
+</script>
+
+<script src="https://js.arcgis.com/4.31/"></script>
+<script>
+if (!_isOAuthCallback) {
+require([
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager",
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/widgets/Home",
+  "esri/widgets/ScaleBar",
+  "esri/widgets/Legend",
+  "esri/widgets/Expand",
+  "esri/core/reactiveUtils"
+], function(OAuthInfo, IdentityManager, Map, MapView, FeatureLayer,
+            Home, ScaleBar, Legend, Expand, reactiveUtils) {
+
+  // ── Config ──────────────────────────────────────────────────────────
+  var PORTAL_URL   = "https://arc-nhq-gis.maps.arcgis.com";
+  var APP_ID       = "QcQlclq6t4CmimUH";
+  var LAYER_ITEM_ID = "3c225e4e9c344c7bb5424acf1adfb982";
+
+  // Candidate field names for each filter (tried in order)
+  var FIELD_CANDIDATES = {
+    region:  ["Region", "REGION", "RegionName", "region_name", "REGION_NAME", "Div_Name", "Division"],
+    chapter: ["Chapter", "CHAPTER", "ChapterName", "chapter_name", "CHAPTER_NAME", "Chap_Name"],
+    county:  ["County", "COUNTY", "CountyName", "county_name", "COUNTY_NAME", "Co_Name"],
+    city:    ["City", "CITY", "CityName", "city_name", "Muni_Name", "Municipality", "Place"]
+  };
+
+  // ── State ────────────────────────────────────────────────────────────
+  var _layers       = [];   // { layer: FeatureLayer, id, title, fieldMap }
+  var _activeFilter = { region: "", chapter: "", county: "", city: "" };
+
+  // ── DOM refs ─────────────────────────────────────────────────────────
+  var loadingOverlay = document.getElementById('loadingOverlay');
+  var loadingText    = document.getElementById('loadingText');
+  var selRegion      = document.getElementById('sel-region');
+  var selChapter     = document.getElementById('sel-chapter');
+  var selCounty      = document.getElementById('sel-county');
+  var selCity        = document.getElementById('sel-city');
+  var layerToggles   = document.getElementById('layer-toggles');
+  var filterCount    = document.getElementById('filter-count');
+  var countNum       = document.getElementById('count-num');
+  var statusBadge    = document.getElementById('status-badge');
+  var btnClear       = document.getElementById('btn-clear');
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function setLoading(text) {
+    loadingText.textContent = text || 'Loading...';
+    loadingOverlay.classList.remove('hidden');
+  }
+  function hideLoading() {
+    loadingOverlay.classList.add('hidden');
+  }
+  function setStatus(text) {
+    statusBadge.style.display = text ? 'block' : 'none';
+    statusBadge.textContent = text;
+  }
+
+  /** Find the first matching field name from candidates */
+  function resolveField(fields, key) {
+    var names = fields.map(function(f) { return f.name; });
+    var candidates = FIELD_CANDIDATES[key] || [];
+    for (var i = 0; i < candidates.length; i++) {
+      if (names.indexOf(candidates[i]) !== -1) return candidates[i];
+    }
+    // Last resort: case-insensitive partial match
+    var k = key.toLowerCase();
+    for (var j = 0; j < names.length; j++) {
+      if (names[j].toLowerCase().indexOf(k) !== -1) return names[j];
+    }
+    return null;
+  }
+
+  /** Query unique values for a field across all visible layers */
+  function queryUniqueValues(fieldKey) {
+    var promises = _layers
+      .filter(function(l) { return l.fieldMap[fieldKey] && l.layer.visible; })
+      .map(function(l) {
+        return l.layer.queryFeatures({
+          where: "1=1",
+          outFields: [l.fieldMap[fieldKey]],
+          returnDistinctValues: true,
+          returnGeometry: false,
+          orderByFields: [l.fieldMap[fieldKey] + " ASC"]
+        }).then(function(result) {
+          return result.features.map(function(f) {
+            return f.attributes[l.fieldMap[fieldKey]];
+          }).filter(function(v) { return v != null && v !== ""; });
+        });
+      });
+
+    return Promise.all(promises).then(function(arrays) {
+      var merged = [].concat.apply([], arrays);
+      // Deduplicate + sort
+      var seen = {};
+      return merged.filter(function(v) {
+        if (seen[v]) return false;
+        seen[v] = true;
+        return true;
+      }).sort();
+    });
+  }
+
+  /** Populate a <select> with values */
+  function populateSelect(sel, values, placeholder, key) {
+    sel.innerHTML = '';
+    var opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = placeholder + ' (All)';
+    sel.appendChild(opt);
+
+    values.forEach(function(v) {
+      var o = document.createElement('option');
+      o.value = v;
+      o.textContent = v;
+      if (_activeFilter[key] === v) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.disabled = values.length === 0;
+  }
+
+  /** Build where clause from active filters */
+  function buildWhere() {
+    var clauses = [];
+    _layers.forEach(function(l) {
+      var parts = [];
+      Object.keys(_activeFilter).forEach(function(key) {
+        var val = _activeFilter[key];
+        var field = l.fieldMap[key];
+        if (val && field) {
+          parts.push(field + " = '" + val.replace(/'/g, "''") + "'");
+        }
+      });
+      l._currentWhere = parts.length ? parts.join(' AND ') : '1=1';
+    });
+  }
+
+  /** Apply filters to all layers */
+  function applyFilters() {
+    buildWhere();
+    _layers.forEach(function(l) {
+      l.layer.definitionExpression = l._currentWhere;
+    });
+    updateCount();
+  }
+
+  /** Count features across visible filtered layers */
+  function updateCount() {
+    var promises = _layers
+      .filter(function(l) { return l.layer.visible; })
+      .map(function(l) {
+        return l.layer.queryFeatureCount({
+          where: l._currentWhere || '1=1'
+        }).catch(function() { return 0; });
+      });
+
+    Promise.all(promises).then(function(counts) {
+      var total = counts.reduce(function(a, b) { return a + b; }, 0);
+      countNum.textContent = total.toLocaleString();
+      filterCount.style.display = 'block';
+    });
+  }
+
+  /** Load all filter dropdowns fresh */
+  function loadFilters() {
+    var selects = [selRegion, selChapter, selCounty, selCity];
+    selects.forEach(function(s) { s.disabled = true; s.innerHTML = '<option>Loading...</option>'; });
+
+    var keys = ['region', 'chapter', 'county', 'city'];
+    var sels  = [selRegion, selChapter, selCounty, selCity];
+    var labels = ['Region', 'Chapter', 'County', 'City'];
+
+    keys.forEach(function(key, i) {
+      queryUniqueValues(key).then(function(values) {
+        populateSelect(sels[i], values, labels[i], key);
+      }).catch(function(err) {
+        console.warn('Filter query failed for', key, err);
+        sels[i].innerHTML = '<option value="">— unavailable —</option>';
+      });
+    });
+  }
+
+  /** Build layer toggle checkboxes */
+  function buildLayerToggles() {
+    layerToggles.innerHTML = '';
+    if (_layers.length === 0) {
+      layerToggles.innerHTML = '<div style="font-size:12px;color:#aaa;padding:4px 0">No layers found</div>';
+      return;
+    }
+    _layers.forEach(function(l) {
+      var div = document.createElement('label');
+      div.className = 'layer-toggle';
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = l.layer.visible;
+      cb.addEventListener('change', function() {
+        l.layer.visible = cb.checked;
+        loadFilters();
+        applyFilters();
+      });
+
+      var span = document.createElement('span');
+      span.textContent = l.title;
+
+      div.appendChild(cb);
+      div.appendChild(span);
+      layerToggles.appendChild(div);
+    });
+  }
+
+  // ── Filter change handlers ─────────────────────────────────────────
+  function onFilterChange(key, sel) {
+    _activeFilter[key] = sel.value;
+    applyFilters();
+  }
+
+  selRegion.addEventListener('change',  function() { onFilterChange('region',  selRegion);  });
+  selChapter.addEventListener('change', function() { onFilterChange('chapter', selChapter); });
+  selCounty.addEventListener('change',  function() { onFilterChange('county',  selCounty);  });
+  selCity.addEventListener('change',    function() { onFilterChange('city',    selCity);    });
+
+  btnClear.addEventListener('click', function() {
+    _activeFilter = { region: '', chapter: '', county: '', city: '' };
+    [selRegion, selChapter, selCounty, selCity].forEach(function(s) {
+      s.value = '';
+    });
+    applyFilters();
+  });
+
+  // ── Main init ──────────────────────────────────────────────────────
+  function initApp() {
+    setLoading('Loading layer...');
+
+    var map = new Map({ basemap: 'gray-vector' });
+    var view = new MapView({
+      container: 'viewDiv',
+      map: map,
+      zoom: 4,
+      center: [-98, 38] // Continental US
+    });
+
+    // Add widgets
+    view.ui.add(new Home({ view: view }), 'top-left');
+    view.ui.add(new ScaleBar({ view: view, unit: 'dual' }), 'bottom-right');
+
+    var legendExpand = new Expand({
+      view: view,
+      content: new Legend({ view: view }),
+      expandIconClass: 'esri-icon-legend',
+      expandTooltip: 'Legend'
+    });
+    view.ui.add(legendExpand, 'top-right');
+
+    // ── Load the feature layer by item ID ────────────────────────────
+    // First probe the item to see if it's a single layer or a service with sublayers
+    var probeLayer = new FeatureLayer({
+      portalItem: {
+        id: LAYER_ITEM_ID,
+        portal: { url: PORTAL_URL }
+      }
+    });
+
+    probeLayer.load().then(function() {
+      setLoading('Building filters...');
+
+      // Check if this is a MapService/GroupLayer (has sublayers) or a single FeatureLayer
+      if (probeLayer.sublayers && probeLayer.sublayers.length > 0) {
+        // It's a map service — create a FeatureLayer per sublayer
+        probeLayer.sublayers.forEach(function(sub) {
+          var fl = new FeatureLayer({
+            url: probeLayer.url + '/' + sub.id,
+            title: sub.title || ('Layer ' + sub.id)
+          });
+          map.add(fl);
+          fl.load().then(function() {
+            var fieldMap = {};
+            Object.keys(FIELD_CANDIDATES).forEach(function(key) {
+              fieldMap[key] = resolveField(fl.fields, key);
+            });
+            _layers.push({ layer: fl, id: sub.id, title: fl.title, fieldMap: fieldMap });
+            console.log('Sublayer loaded:', fl.title, 'fieldMap:', fieldMap);
+            buildLayerToggles();
+            loadFilters();
+            updateCount();
+          });
+        });
+      } else {
+        // Single FeatureLayer
+        map.add(probeLayer);
+        var fieldMap = {};
+        Object.keys(FIELD_CANDIDATES).forEach(function(key) {
+          fieldMap[key] = resolveField(probeLayer.fields, key);
+        });
+        _layers.push({
+          layer: probeLayer,
+          id: probeLayer.id,
+          title: probeLayer.title || 'Community Mobilization',
+          fieldMap: fieldMap
+        });
+        console.log('Layer loaded:', probeLayer.title);
+        console.log('Fields:', probeLayer.fields.map(function(f) { return f.name; }).join(', '));
+        console.log('Field map:', fieldMap);
+        buildLayerToggles();
+        loadFilters();
+        updateCount();
+      }
+
+      view.when(function() {
+        hideLoading();
+        // Zoom to layer extent if available
+        probeLayer.queryExtent().then(function(result) {
+          if (result && result.extent) view.goTo(result.extent.expand(1.1));
+        }).catch(function() {});
+      });
+
+    }).catch(function(err) {
+      console.error('Layer load failed:', err);
+      setLoading('Failed to load layer. Check console.');
+    });
+
+    // Log field names to console for debugging once view is ready
+    view.when(function() {
+      if (_layers.length > 0) {
+        console.log('=== Available fields ===');
+        _layers.forEach(function(l) {
+          console.log(l.title + ':', l.layer.fields.map(function(f) { return f.name + ' (' + f.type + ')'; }).join(', '));
+        });
+      }
+    });
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────
+  setLoading('Authenticating...');
+
+  var oauthInfo = new OAuthInfo({
+    appId: APP_ID,
+    portalUrl: PORTAL_URL,
+    popup: false
+  });
+  IdentityManager.registerOAuthInfos([oauthInfo]);
+
+  IdentityManager.checkSignInStatus(PORTAL_URL + '/sharing')
+    .then(function(cred) {
+      console.log('Already signed in:', cred.userId);
+      initApp();
+    })
+    .catch(function() {
+      // Not signed in — trigger OAuth redirect
+      IdentityManager.getCredential(PORTAL_URL + '/sharing')
+        .then(function(cred) {
+          console.log('Signed in via OAuth:', cred.userId);
+          initApp();
+        })
+        .catch(function(err) {
+          console.error('Auth failed:', err);
+          setLoading('Sign-in failed. Please refresh and try again.');
+        });
+    });
+
+});
+} // end if (!_isOAuthCallback)
+</script>
+
+</body>
+</html>

@@ -472,14 +472,30 @@ require([
   // ═══════════════════════════════════════════════════════════
   // POPUP
   // ═══════════════════════════════════════════════════════════
+  // Fields to suppress entirely from "Additional Details"
+  var SUPPRESS_FIELDS = [
+    /^(latitude|longitude|lat|lon|long|x|y|x_coord|y_coord|shape_x|shape_y)$/i,
+    /^(fips|county_fips|geoid|census_tract|tract_fips|objectid|oid|globalid|created_|last_edit|esri_)$/i
+  ];
+  function isSuppressed(fieldName) {
+    return SUPPRESS_FIELDS.some(function(re){ return re.test(fieldName); });
+  }
+
   function fmtVal(attrs, fieldName) {
     if (!fieldName) return null;
     var v = attrs[fieldName];
     if (v === null || v === undefined || String(v).trim() === '') return null;
+    // Truncate lat/lon to 2 decimals for privacy
+    if (/^(lat|latitude)$/i.test(fieldName) && typeof v === 'number')
+      return v.toFixed(2) + '°N';
+    if (/^(lon|long|longitude)$/i.test(fieldName) && typeof v === 'number')
+      return v.toFixed(2) + '°W';
+    // Format SVI as percentile
+    if (/svi/i.test(fieldName) && typeof v === 'number' && v >= 0 && v <= 1)
+      return Math.round(v * 100) + 'th percentile';
     // Format dates
-    if (typeof v === 'number' && v > 1000000000000) {
-      return new Date(v).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
-    }
+    if (typeof v === 'number' && v > 1000000000000)
+      return new Date(v).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
     return String(v);
   }
 
@@ -489,60 +505,76 @@ require([
            '</div><div class="pop-field-value">' + val + '</div></div>';
   }
 
+  // SVI field name in the layer (confirmed from popup data)
+  var SVI_LAYER_FIELD = 'SVI Risk';
+
   function buildPopupContent(feature) {
     var a = feature.graphic.attributes;
-    var catVal  = _fieldMap.masterLabel ? (a[_fieldMap.masterLabel] || '') : '';
-    var color   = _catColorMap[catVal] || '#888';
-    var icon    = getIcon(catVal);
+    var catVal   = _fieldMap.masterLabel ? (a[_fieldMap.masterLabel] || '') : '';
+    var color    = _catColorMap[catVal] || '#888';
+    var icon     = getIcon(catVal);
+    var division = fmtVal(a, _fieldMap.division) || '';
+    var chapter  = fmtVal(a, _fieldMap.chapter)  || '';
+    var region   = fmtVal(a, _fieldMap.region)   || '';
+    var county   = fmtVal(a, _fieldMap.county)   || '';
+    var city     = fmtVal(a, _fieldMap.city)     || '';
+    var zip      = fmtVal(a, _fieldMap.zip)      || '';
+    var addr     = fmtVal(a, _fieldMap.address)  || '';
+    var dt       = fmtVal(a, _fieldMap.date)     || '';
+    var cas      = fmtVal(a, _fieldMap.casualties) || '';
+    var svi      = fmtVal(a, SVI_LAYER_FIELD)    || '';
 
-    var chapter = fmtVal(a, _fieldMap.chapter) || '';
-    var region  = fmtVal(a, _fieldMap.region)  || '';
-    var state   = fmtVal(a, _fieldMap.state)   || '';
-    var county  = fmtVal(a, _fieldMap.county)  || '';
-    var city    = fmtVal(a, _fieldMap.city)    || '';
-    var zip     = fmtVal(a, _fieldMap.zip)     || '';
-    var addr    = fmtVal(a, _fieldMap.address) || '';
-    var dt      = fmtVal(a, _fieldMap.date)    || '';
-    var cas     = fmtVal(a, _fieldMap.casualties) || '';
+    var locLine = [city, county ? county + ' Co.' : '', zip].filter(Boolean).join(', ');
 
-    var locLine = [city, county ? county + ' Co.' : '', state, zip].filter(Boolean).join(', ');
+    // Known field names — suppress these from "Additional Details"
+    var knownNames = Object.values(_fieldMap).filter(Boolean);
+    knownNames.push(SVI_LAYER_FIELD);
 
     var html = '<div class="pop-card">';
 
-    // Header
+    // Colored header
     html += '<div class="pop-header" style="background:' + color + '">';
-    html += '<div class="pop-icon">' + icon + '</div>';
-    html += '<div>';
+    html += '<div class="pop-icon">' + icon + '</div><div>';
     html += '<div class="pop-title">' + (catVal || 'Fire Incident') + '</div>';
     if (locLine) html += '<div class="pop-subtitle">' + locLine + '</div>';
-    html += '</div>';
-    html += '</div>';
+    html += '</div></div>';
 
-    // Body
     html += '<div class="pop-body">';
 
-    if (addr) {
-      html += '<div class="pop-field" style="margin-bottom:10px">' +
-              '<div class="pop-field-label">Address</div>' +
-              '<div class="pop-field-value">' + addr + '</div></div>';
-    }
+    // Address block
+    if (addr) html += '<div class="pop-field" style="margin-bottom:10px">' +
+      '<div class="pop-field-label">Address</div>' +
+      '<div class="pop-field-value">' + addr + '</div></div>';
 
+    // Primary grid
     html += '<div class="pop-grid">';
-    if (dt)      html += popupField('Date', dt);
-    if (chapter) html += popupField('Chapter', chapter);
-    if (region)  html += popupField('Region', region);
-    if (county)  html += popupField('County', county);
-    if (city)    html += popupField('City', city);
-    if (state)   html += popupField('State', state);
-    if (zip)     html += popupField('ZIP', zip);
-    if (cas)     html += popupField('Casualties', cas);
+    if (dt)       html += popupField('Date', dt);
+    if (division) html += popupField('Division', division);
+    if (region)   html += popupField('Region', region);
+    if (chapter)  html += popupField('Chapter', chapter);
+    if (county)   html += popupField('County', county);
+    if (city)     html += popupField('City', city);
+    if (zip)      html += popupField('ZIP', zip);
+    if (cas)      html += popupField('Casualties', cas);
     html += '</div>';
 
-    // Show remaining non-null, non-OID fields
-    var knownNames = Object.values(_fieldMap).filter(Boolean);
+    // SVI badge
+    if (svi) {
+      var sviNum = parseFloat(a[SVI_LAYER_FIELD]);
+      var sviColor = sviNum >= 0.75 ? '#dc2626' : sviNum >= 0.5 ? '#f97316' : sviNum >= 0.25 ? '#f59e0b' : '#22c55e';
+      html += '<div class="pop-section-title">Community Vulnerability</div>';
+      html += '<div class="pop-grid">';
+      html += '<div class="pop-field pop-full">' +
+              '<div class="pop-field-label">Social Vulnerability Index</div>' +
+              '<div class="pop-field-value" style="color:' + sviColor + ';font-size:15px">' + svi + '</div>' +
+              '</div>';
+      html += '</div>';
+    }
+
+    // Additional — skip coords, FIPS, known fields
     var extras = _flareLayer.fields.filter(function(f) {
       return f.type !== 'oid' && f.type !== 'geometry' && f.type !== 'blob' &&
-             knownNames.indexOf(f.name) === -1;
+             knownNames.indexOf(f.name) === -1 && !isSuppressed(f.name);
     }).map(function(f) {
       var v = fmtVal(a, f.name);
       return v ? { label: f.alias || f.name, value: v } : null;
@@ -555,7 +587,7 @@ require([
       html += '</div>';
     }
 
-    html += '</div></div>'; // /pop-body /pop-card
+    html += '</div></div>';
     return html;
   }
 

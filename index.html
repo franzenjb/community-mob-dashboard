@@ -18,7 +18,7 @@
     }
     .header-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
     .header-pipe  { opacity: 0.3; font-weight: 300; }
-    .header-sub   { font-size: 13px; font-weight: 500; opacity: 0.75; }
+    .header-sub   { font-size: 16px; font-weight: 700; opacity: 0.92; }
 
     /* ── KPI Bar ── */
     .kpi-bar {
@@ -43,9 +43,15 @@
     .kpi-tile:hover { background: rgba(255,255,255,0.04); }
     .kpi-num {
       font-size: 24px; font-weight: 800; color: #fff; line-height: 1;
-      font-variant-numeric: tabular-nums;
+      font-variant-numeric: tabular-nums; text-align: center;
     }
     .kpi-num.dim { color: rgba(255,255,255,0.25); font-size: 16px; }
+    .kpi-pct {
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4);
+      font-variant-numeric: tabular-nums; margin-left: 3px; align-self: flex-end; line-height: 1.4;
+    }
+    .kpi-pct.dim { color: rgba(255,255,255,0.15); }
+    .kpi-num-row { display: flex; align-items: baseline; justify-content: center; }
     .kpi-lbl {
       font-size: 9.5px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.8px; color: rgba(255,255,255,0.45); margin-top: 5px;
@@ -523,6 +529,7 @@ require([
   var _sviLayer        = null;
   var _nriLayer        = null;
   var _view            = null;
+  var _kpiTotal        = 0;
   var _boundaryLayers  = {};   // id → FeatureLayer (div, reg, chap)
 
   // Filter key → boundary layer id (auto-enable on select)
@@ -842,7 +849,8 @@ require([
       tile.className = 'kpi-tile kpi-cat';
       tile.style.setProperty('--kc', c);
       tile.innerHTML =
-        '<div class="kpi-num dim" id="kpi-c' + i + '">—</div>' +
+        '<div class="kpi-num-row"><div class="kpi-num dim" id="kpi-c' + i + '">—</div>' +
+        '<div class="kpi-pct dim" id="kpi-pct' + i + '">—%</div></div>' +
         '<div class="kpi-lbl"><span class="kpi-dot" style="--kc:' + c + '"></span>' + grp.label + '</div>';
       kpiBar.appendChild(tile);
     });
@@ -869,6 +877,7 @@ require([
 
     // Total
     layer.queryFeatureCount({ where: where }).then(function(n) {
+      _kpiTotal = n;
       kpiTotal.textContent = n.toLocaleString();
       kpiTotal.classList.remove('dim');
       countNum.textContent = n.toLocaleString();
@@ -885,9 +894,15 @@ require([
       }).join(' OR ');
       var catClause = grp.values.length > 1 ? '(' + vals + ')' : vals;
       var w = where === '1=1' ? catClause : where + ' AND ' + catClause;
+      var pctEl = $('kpi-pct' + i);
       el.textContent = '—'; el.classList.add('dim');
+      if (pctEl) { pctEl.textContent = '—%'; pctEl.classList.add('dim'); }
       layer.queryFeatureCount({ where: w }).then(function(n) {
         el.textContent = n.toLocaleString(); el.classList.remove('dim');
+        if (pctEl) {
+          pctEl.textContent = _kpiTotal > 0 ? Math.round(n / _kpiTotal * 100) + '%' : '';
+          pctEl.classList.remove('dim');
+        }
       }).catch(function(){});
     });
 

@@ -66,12 +66,46 @@
     /* ── Layout ── */
     .app-body { display: flex; height: calc(100% - 50px - 84px); }
 
-    /* ── Sidebar ── */
+    /* ── Left sidebar + collapse wrapper ── */
+    .left-wrap { display: flex; flex-shrink: 0; position: relative; }
     .sidebar {
       width: 280px; flex-shrink: 0; background: #fff;
       border-right: 1px solid #e4e4e4;
       display: flex; flex-direction: column; overflow-y: auto; z-index: 20;
+      transition: width 0.22s ease;
     }
+    .left-wrap.collapsed .sidebar { width: 0; overflow: hidden; border-right: none; }
+    .sidebar-tab-btn {
+      position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+      width: 14px; height: 52px; background: #fff; border: 1px solid #e4e4e4;
+      border-left: none; border-radius: 0 5px 5px 0; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: #aaa; z-index: 25; transition: all 0.13s;
+    }
+    .sidebar-tab-btn:hover { background: #fafafa; color: #555; }
+
+    /* ── Right feature-info sidebar ── */
+    .sidebar-right {
+      width: 0; flex-shrink: 0; background: #fff;
+      border-left: 1px solid #e4e4e4; overflow: hidden;
+      display: flex; flex-direction: column; z-index: 20;
+      transition: width 0.22s ease;
+    }
+    .sidebar-right.open { width: 300px; }
+    .sr-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px 10px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
+    }
+    .sr-title {
+      font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.1px; color: #bbb;
+    }
+    .sr-close {
+      background: none; border: none; cursor: pointer; color: #aaa;
+      font-size: 18px; line-height: 1; padding: 2px 4px; border-radius: 4px;
+    }
+    .sr-close:hover { background: #fee2e2; color: #C41E3A; }
+    .sr-body { overflow-y: auto; flex: 1; }
 
     /* Sidebar sections */
     .sb-section { padding: 14px 14px 0; }
@@ -324,7 +358,8 @@
 <!-- Body -->
 <div class="app-body">
 
-  <!-- Sidebar -->
+  <!-- Left sidebar + toggle -->
+  <div class="left-wrap" id="left-wrap">
   <div class="sidebar">
 
     <div class="sb-section">
@@ -416,6 +451,8 @@
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
 
   </div>
+  <button class="sidebar-tab-btn" id="left-tab" title="Toggle panel">&#8249;</button>
+  </div><!-- /left-wrap -->
 
   <!-- Map -->
   <div id="map-wrap">
@@ -424,6 +461,15 @@
       <div class="spinner"></div>
       <div class="loading-msg" id="loadingMsg">Authenticating...</div>
     </div>
+  </div>
+
+  <!-- Right feature-info sidebar -->
+  <div class="sidebar-right" id="sidebar-right">
+    <div class="sr-header">
+      <span class="sr-title">Feature Info</span>
+      <button class="sr-close" id="close-right">&#215;</button>
+    </div>
+    <div class="sr-body" id="sr-body"></div>
   </div>
 
 </div>
@@ -646,7 +692,6 @@ require([
     var a = feature.graphic.attributes;
     var catVal   = _fieldMap.masterLabel ? (a[_fieldMap.masterLabel] || '') : '';
     var color    = _catColorMap[catVal] || '#888';
-    var icon     = getIcon(catVal);
     var division = fmtVal(a, _fieldMap.division) || '';
     var chapter  = fmtVal(a, _fieldMap.chapter)  || '';
     var region   = fmtVal(a, _fieldMap.region)   || '';
@@ -671,10 +716,9 @@ require([
 
     // Colored header
     html += '<div class="pop-header" style="background:' + color + '">';
-    html += '<div class="pop-icon">' + icon + '</div><div>';
     html += '<div class="pop-title">' + (catVal || 'Fire Incident') + '</div>';
     if (locLine) html += '<div class="pop-subtitle">' + locLine + '</div>';
-    html += '</div></div>';
+    html += '</div>';
 
     html += '<div class="pop-body">';
 
@@ -729,16 +773,6 @@ require([
     return html;
   }
 
-  function getIcon(catVal) {
-    if (!catVal) return '🔥';
-    var v = catVal.toLowerCase();
-    if (v.indexOf('single') !== -1 || v.indexOf('1') !== -1) return '🏠';
-    if (v.indexOf('multi')  !== -1 || v.indexOf('apartment') !== -1) return '🏢';
-    if (v.indexOf('mobile') !== -1 || v.indexOf('trailer') !== -1) return '🏡';
-    if (v.indexOf('commercial') !== -1 || v.indexOf('business') !== -1) return '🏭';
-    if (v.indexOf('vehicle') !== -1 || v.indexOf('car') !== -1) return '🚗';
-    return '🔥';
-  }
 
   // Green = WITH RC Notification, Red = WITHOUT RC Notification
   function catColor(label) {
@@ -1313,6 +1347,31 @@ function loadAllFilters() {
 
     _view.ui.add(new Home({ view:_view }), 'top-left');
     _view.ui.add(new ScaleBar({ view:_view, unit:'dual' }), 'bottom-right');
+    _view.popup.autoOpenEnabled = false;
+
+    // ── Click → right sidebar feature info ──────────────────────
+    _view.on('click', function(evt) {
+      _view.hitTest(evt).then(function(response) {
+        var hit = response.results.find(function(r) {
+          return r.graphic && r.graphic.layer === _flareLayer;
+        });
+        if (!hit) return;
+        var html = buildPopupContent({ graphic: hit.graphic });
+        $('sr-body').innerHTML = html;
+        $('sidebar-right').classList.add('open');
+      });
+    });
+
+    // ── Left sidebar toggle ──────────────────────────────────────
+    $('left-tab').addEventListener('click', function() {
+      var wrap = $('left-wrap');
+      wrap.classList.toggle('collapsed');
+      $('left-tab').innerHTML = wrap.classList.contains('collapsed') ? '&#8250;' : '&#8249;';
+    });
+    // ── Right sidebar close ──────────────────────────────────────
+    $('close-right').addEventListener('click', function() {
+      $('sidebar-right').classList.remove('open');
+    });
 
     // Show "zoom in" badge on SVI/NRI toggles when layer is on but out of scale range
     reactiveUtils.watch(
@@ -1365,17 +1424,8 @@ function loadAllFilters() {
       });
       console.log('Field map:', _fieldMap);
 
-      // Popup template
-      fl.popupTemplate = new PopupTemplate({
-        title: function(feature) {
-          var a = feature.graphic.attributes;
-          var cat = _fieldMap.masterLabel ? (a[_fieldMap.masterLabel]||'Fire Incident') : 'Fire Incident';
-          var loc = _fieldMap.city ? (a[_fieldMap.city]||'') : '';
-          return cat + (loc ? ' — ' + loc : '');
-        },
-        content: buildPopupContent,
-        outFields: ['*']
-      });
+      // Disable native popup — feature info shown in right sidebar instead
+      fl.popupEnabled = false;
 
       // Build renderer from master label categories
       var labelField = _fieldMap.masterLabel;

@@ -433,8 +433,13 @@
             <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
               color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
           </label>
-          <div id="station-search-row" style="display:none;padding:4px 0 2px 26px">
-            <input type="text" id="station-search" class="fsel" placeholder="Search stations or departments…">
+          <div id="station-search-row" style="display:none;padding:4px 0 2px 0;position:relative">
+            <input type="text" id="station-search" class="fsel" placeholder="Search stations or departments…" autocomplete="off">
+            <div id="station-dropdown" style="
+              display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
+              background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
+              max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+            "></div>
           </div>
         </div>
       </div>
@@ -1380,17 +1385,58 @@ function loadAllFilters() {
       if (!on) { $('station-search').value = ''; _stationsLayer.definitionExpression = '1=1'; }
     });
 
-    // Station search — filters by station_name OR department_name
+    // Station typeahead — queries layer, shows dropdown list, zooms on select
     var _stationTimer;
-    $('station-search').addEventListener('input', function() {
+    var inp = $('station-search');
+    var dd  = $('station-dropdown');
+
+    function showStationDropdown(features) {
+      dd.innerHTML = '';
+      if (!features.length) {
+        dd.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:#aaa">No results</div>';
+        dd.style.display = '';
+        return;
+      }
+      features.forEach(function(f) {
+        var a = f.attributes;
+        var item = document.createElement('div');
+        item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;line-height:1.35';
+        item.innerHTML =
+          '<div style="font-weight:600;color:#222">' + (a.station_name || '—') + '</div>' +
+          '<div style="font-size:11px;color:#888">' + (a.department_name || '') +
+          (a.city ? ' · ' + a.city + ', ' + (a.state || '') : '') + '</div>';
+        item.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          inp.value = a.station_name || a.department_name || '';
+          dd.style.display = 'none';
+          _stationsLayer.definitionExpression =
+            "station_name = '" + (a.station_name || '').replace(/'/g,"''") + "'";
+          if (f.geometry) _view.goTo({ target: f.geometry, zoom: 14 }, { duration: 600 });
+        });
+        item.addEventListener('mouseover', function() { item.style.background = '#fdf5f6'; });
+        item.addEventListener('mouseout',  function() { item.style.background = ''; });
+        dd.appendChild(item);
+      });
+      dd.style.display = '';
+    }
+
+    inp.addEventListener('input', function() {
       clearTimeout(_stationTimer);
+      var q = inp.value.trim();
+      if (!q) { dd.style.display = 'none'; _stationsLayer.definitionExpression = '1=1'; return; }
       _stationTimer = setTimeout(function() {
-        var q = $('station-search').value.trim().replace(/'/g, "''");
-        _stationsLayer.definitionExpression = q
-          ? "station_name LIKE '%" + q + "%' OR department_name LIKE '%" + q + "%'"
-          : '1=1';
-      }, 350);
+        var safe = q.replace(/'/g, "''");
+        _stationsLayer.queryFeatures({
+          where: "station_name LIKE '%" + safe + "%' OR department_name LIKE '%" + safe + "%'",
+          outFields: ['station_name','department_name','city','state'],
+          returnGeometry: true, num: 25,
+          orderByFields: ['station_name ASC']
+        }).then(function(r) { showStationDropdown(r.features); });
+      }, 300);
     });
+
+    inp.addEventListener('blur', function() { setTimeout(function(){ dd.style.display='none'; }, 150); });
+    inp.addEventListener('focus', function() { if (dd.children.length) dd.style.display=''; });
   }
 
   // ═══════════════════════════════════════════════════════════

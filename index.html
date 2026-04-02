@@ -411,10 +411,6 @@
         <label class="filter-lbl" for="sel-chapter">Chapter</label>
         <select id="sel-chapter" class="fsel" disabled><option>Loading...</option></select>
       </div>
-      <div class="filter-row">
-        <label class="filter-lbl" for="sel-county">County</label>
-        <select id="sel-county" class="fsel" disabled><option>Loading...</option></select>
-      </div>
     </div>
 
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
@@ -498,7 +494,7 @@ require([
   var BOUNDARY_CONFIGS = [
     { id:'div',  layerId:1, field:'Division', color:'#7B2D8E', width:2.0, minScale:0,       maxScale:0,       labelMinScale:25000000, labelMaxScale:3000000 },
     { id:'reg',  layerId:2, field:'Region',   color:'#2D6DB4', width:1.5, minScale:0,       maxScale:0,       labelMinScale:8000000,  labelMaxScale:800000  },
-    { id:'chap', layerId:3, field:'Chapter',  color:'#C41E3A', width:1.2, minScale:0,       maxScale:0,       labelMinScale:15000000, labelMaxScale:0       }
+    { id:'chap', layerId:3, field:'Chapter',  color:'#C41E3A', width:1.2, minScale:5000000, maxScale:0,       labelMinScale:5000000,  labelMaxScale:0       }
   ];
 
   // Categories to merge: 'Fire with RC Care' rolls into 'Fire with RC Notification'
@@ -535,7 +531,7 @@ require([
   var _fieldMap        = {};
   var _categories      = [];
   var _catColorMap     = {};
-  var _activeFilter    = { division:'', region:'', chapter:'', county:'' };
+  var _activeFilter    = { division:'', region:'', chapter:'' };
   var _sviLayer        = null;
   var _nriLayer        = null;
   var _stationsLayer   = null;
@@ -560,20 +556,17 @@ require([
   var selDivision    = $('sel-division');
   var selRegion      = $('sel-region');
   var selChapter     = $('sel-chapter');
-  var selCounty      = $('sel-county');
 
   // ── Cascade chain — order matters ───────────────────────────────────
   var FILTER_CHAIN = [
     { key:'division', label:'Division', sel:null },
     { key:'region',   label:'Region',   sel:null },
-    { key:'chapter',  label:'Chapter',  sel:null },
-    { key:'county',   label:'County',   sel:null }
+    { key:'chapter',  label:'Chapter',  sel:null }
   ];
   function wireChain() {
     FILTER_CHAIN[0].sel = selDivision;
     FILTER_CHAIN[1].sel = selRegion;
     FILTER_CHAIN[2].sel = selChapter;
-    FILTER_CHAIN[3].sel = selCounty;
     FILTER_CHAIN.forEach(function(item, idx) {
       item.sel.addEventListener('change', function() { onChainChange(idx); });
     });

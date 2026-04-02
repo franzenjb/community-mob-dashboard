@@ -128,15 +128,7 @@
     }
     .filter-count strong { color: #C41E3A; font-size: 13px; }
 
-    /* Field discovery panel */
-    .field-panel {
-      margin: 0 14px 14px; padding: 10px;
-      background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 4px;
-      font-size: 10px; color: #999; line-height: 1.8;
-    }
-    .field-panel strong { color: #666; }
-    .field-found  { color: #2e7d32; }
-    .field-missing { color: #c62828; }
+
 
     /* ── Map ── */
     #map-wrap { flex: 1; position: relative; }
@@ -305,14 +297,6 @@
   <div class="header-pipe">|</div>
   <div class="header-sub">Fire Incidents Dashboard</div>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-    <a href="mailto:jeff.franzen2@redcross.org"
-       style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;text-decoration:none;
-              padding:5px 10px;border:1px solid rgba(255,255,255,0.3);border-radius:4px;
-              transition:all 0.15s"
-       onmouseover="this.style.color='#fff';this.style.borderColor='rgba(255,255,255,0.7)'"
-       onmouseout="this.style.color='rgba(255,255,255,0.7)';this.style.borderColor='rgba(255,255,255,0.3)'">
-      ✉ Contact
-    </a>
     <button onclick="document.getElementById('help-modal').style.display='flex'"
             style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);
                    color:#fff;font-size:13px;font-weight:700;width:28px;height:28px;
@@ -349,17 +333,17 @@
         <span class="layer-group-label">ARC Boundaries</span>
         <div>
           <label class="layer-row">
-            <input type="checkbox" id="cb-div">
+            <input type="checkbox" id="cb-div" checked>
             <div class="layer-color-swatch" style="background:#7B2D8E;border-radius:2px"></div>
             <span>Divisions</span>
           </label>
           <label class="layer-row">
-            <input type="checkbox" id="cb-reg">
+            <input type="checkbox" id="cb-reg" checked>
             <div class="layer-color-swatch" style="background:#2D6DB4;border-radius:2px"></div>
             <span>Regions</span>
           </label>
           <label class="layer-row">
-            <input type="checkbox" id="cb-chap">
+            <input type="checkbox" id="cb-chap" checked>
             <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
             <span>Chapters</span>
           </label>
@@ -373,11 +357,15 @@
             <input type="checkbox" id="cb-svi">
             <div class="layer-color-swatch" style="background: linear-gradient(135deg,#fde68a,#f97316,#dc2626)"></div>
             <span>Social Vulnerability Index (SVI)</span>
+            <span id="svi-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+              color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
           </label>
           <label class="layer-row" id="lyr-nri">
             <input type="checkbox" id="cb-nri">
             <div class="layer-color-swatch" style="background: linear-gradient(135deg,#bfdbfe,#6366f1,#312e81)"></div>
             <span>National Risk Index (NRI)</span>
+            <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+              color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
           </label>
         </div>
       </div>
@@ -386,9 +374,6 @@
     <div class="sb-section">
       <hr class="divider">
       <div class="sb-title">Filters</div>
-      <div id="breadcrumb" style="display:none;margin-bottom:10px;padding:7px 10px;
-           background:#fdf5f6;border:1px solid #f5c6cc;border-radius:4px;
-           font-size:11px;color:#C41E3A;line-height:1.5;word-break:break-word"></div>
 
       <div class="filter-row">
         <label class="filter-lbl" for="sel-division">Division</label>
@@ -420,9 +405,6 @@
       <strong id="count-num">—</strong> features
     </div>
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
-
-    <!-- Field discovery panel (debug / field map) -->
-    <div class="field-panel" id="field-panel" style="display:none"></div>
 
   </div>
 
@@ -513,39 +495,37 @@ require([
     division:    ["Division","DIVISION","division_name","DivName","Div_Name","DIV_NAME","div_name"],
     region:      ["Region","REGION","region_name","RegionName","REG_NAME","reg_name"],
     chapter:     ["Chapter","CHAPTER","chapter_name","ChapterName","Chap_Name","CHAP_NAME"],
-    county:      ["county","County","COUNTY","county_name","County_Name","COUNTY_NAME",
-                  "cnty_name","cnty_nm","CNTY_NAME","CNTY_NM","co_name","CO_NAME",
-                  "county_nm","CountyName","Cnty_Name","IncidentCounty","incident_county",
-                  "prop_county","PropCounty","CountyFull","county_full"],
-    city:        ["city","City","CITY","city_name","City_Name","CITY_NAME","muni_name",
-                  "Muni_Name","MUNI_NAME","municipality","Municipality","place","Place",
-                  "place_name","inc_city","INC_CITY","incident_city","Incident_City",
-                  "CityName","prop_city","PropCity","CityMuni","city_muni","IncidentCity"],
-    zip:         ["zip","ZIP","zip_code","ZIP_CODE","postal_code","ZipCode","Zip_Code","ZIPCODE"],
-    state:       ["state","State","STATE","state_name","State_Name","STATE_NAME","StateName"],
-    masterLabel: ["MasterLabel","master_label","masterLabel","Master_Label","MASTER_LABEL",
-                  "Label","label","Category","category","IncidentType","incident_type",
-                  "DwellingType","dwelling_type","Structure_Type","structure_type",
-                  "ResidentType","resident_type","Type","type","FireType","fire_type"],
-    date:        ["incident_date","IncidentDate","date","Date","DATE","inc_date","INC_DATE",
-                  "alarm_date","AlarmDate","reported_date","ReportedDate"],
-    address:     ["address","Address","ADDRESS","full_address","FullAddress","inc_address",
-                  "INC_ADDRESS","location","Location"],
-    casualties:  ["casualties","Casualties","deaths","Deaths","fatalities","Fatalities",
-                  "injuries","Injuries","people_affected","PeopleAffected"]
+    county:      ["County","county","COUNTY","county_name","County_Name","COUNTY_NAME",
+                  "cnty_name","cnty_nm","CNTY_NAME"],
+    city:        ["City","city","CITY","City_Name","city_name","CITY_NAME",
+                  "Muni_Name","muni_name","Municipality","municipality",
+                  "Place","place","IncidentCity","incident_city","inc_city"],
+    zip:         ["Zip","zip","ZIP","Zip_Code","zip_code","ZIP_CODE","ZipCode","PostalCode","postal_code"],
+    state:       ["State","state","STATE","State_Name","state_name","STATE_NAME"],
+    masterLabel: ["Master_Label","MasterLabel","master_label","masterLabel",   // confirmed
+                  "Label","label","Category","category","IncidentType","incident_type","Type","type"],
+    date:        ["Event_Date","event_date","EventDate",                        // confirmed
+                  "incident_date","IncidentDate","AlarmDate","alarm_date","ReportedDate"],
+    address:     ["IncidentAddress","incident_address","Address","address",
+                  "Full_Address","full_address","Location","location","Street","street"],
+    casualties:  ["Casualties","casualties","Deaths","deaths","Fatalities","fatalities","Injuries","injuries"]
   };
 
   // ═══════════════════════════════════════════════════════════
   // STATE
   // ═══════════════════════════════════════════════════════════
-  var _flareLayer   = null;
-  var _fieldMap     = {};
-  var _categories   = [];       // unique values for master label
-  var _catColorMap  = {};       // value → color hex
-  var _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
-  var _sviLayer     = null;
-  var _nriLayer     = null;
-  var _view         = null;
+  var _flareLayer      = null;
+  var _fieldMap        = {};
+  var _categories      = [];
+  var _catColorMap     = {};
+  var _activeFilter    = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
+  var _sviLayer        = null;
+  var _nriLayer        = null;
+  var _view            = null;
+  var _boundaryLayers  = {};   // id → FeatureLayer (div, reg, chap)
+
+  // Filter key → boundary layer id (auto-enable on select)
+  var FILTER_TO_BOUNDARY = { division:'div', region:'reg', chapter:'chap' };
 
   // ═══════════════════════════════════════════════════════════
   // DOM
@@ -558,7 +538,6 @@ require([
   var incidentLayers = $('incident-layers');
   var filterCount    = $('filter-count');
   var countNum       = $('count-num');
-  var fieldPanel     = $('field-panel');
   var btnClear       = $('btn-clear');
   var selDivision    = $('sel-division');
   var selRegion      = $('sel-region');
@@ -621,7 +600,8 @@ require([
   // Fields to suppress entirely from "Additional Details"
   var SUPPRESS_FIELDS = [
     /^(latitude|longitude|lat|lon|long|x|y|x_coord|y_coord|shape_x|shape_y)$/i,
-    /^(fips|county_fips|geoid|census_tract|tract_fips|objectid|oid|globalid|created_|last_edit|esri_)$/i
+    /^(fips|county_fips|geoid|census_tract|tract_fips|objectid|oid|globalid|created_|last_edit|esri_)$/i,
+    /^svi\s*risk$/i   // shown in dedicated SVI section, not Additional Details
   ];
   function isSuppressed(fieldName) {
     return SUPPRESS_FIELDS.some(function(re){ return re.test(fieldName); });
@@ -1019,25 +999,21 @@ require([
     applyFilters();
     reloadChainFrom(changedIndex + 1);
 
+    // Auto-enable the matching boundary layer when a filter is selected
+    var bid = FILTER_TO_BOUNDARY[item.key];
+    if (bid && item.sel.value && _boundaryLayers[bid]) {
+      _boundaryLayers[bid].visible = true;
+      var cb = $('cb-' + bid);
+      if (cb) cb.checked = true;
+    }
+
     // Zoom only if a real value was selected (not "All")
     if (item.sel.value) zoomToFiltered(changedIndex);
-    updateBreadcrumb();
   }
 
-  function updateBreadcrumb() {
-    var bc = $('breadcrumb');
-    var parts = FILTER_CHAIN
-      .filter(function(item) { return _activeFilter[item.key]; })
-      .map(function(item) { return _activeFilter[item.key]; });
-    if (parts.length === 0) { bc.style.display = 'none'; return; }
-    bc.style.display = 'block';
-    bc.innerHTML = parts.join(' <span style="opacity:0.5">›</span> ');
-  }
-
-  function loadAllFilters() {
+function loadAllFilters() {
     _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
     reloadChainFrom(0);
-    updateBreadcrumb();
   }
 
   btnClear.addEventListener('click', function() {
@@ -1045,7 +1021,6 @@ require([
     FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
     applyFilters();
     reloadChainFrom(0);
-    updateBreadcrumb();
     // Zoom back to 48 states
     _view.goTo({
       extent: { xmin:-125, ymin:24.5, xmax:-66.5, ymax:49.5, spatialReference:{wkid:4326} }
@@ -1077,6 +1052,7 @@ require([
     _sviLayer = new FeatureLayer({
       url: SVI_URL,
       visible: false, opacity: 0.55,
+      minScale: 3000000,   // only loads/renders at state zoom or closer
       renderer: buildSviRenderer(),
       outFields: ['RPL_THEMES','RPL_THEME1','RPL_THEME2','RPL_THEME3','RPL_THEME4',
                   'E_TOTPOP','COUNTY','STATE','FIPS'],
@@ -1136,6 +1112,7 @@ require([
     _nriLayer = new FeatureLayer({
       url: NRI_URL,
       visible: false, opacity: 0.55,
+      minScale: 5000000,   // counties are larger — loads at slightly wider view
       renderer: buildNriRenderer(),
       outFields: ['RISK_SCORE','RISK_RATNG','EAL_SCORE','SOVI_SCORE','CRF_VALUE','COUNTY','STATE'],
       popupEnabled: true,
@@ -1196,7 +1173,7 @@ require([
       };
       var bl = new FeatureLayer({
         url: ARC_GEO_BASE + '/' + cfg.layerId,
-        visible: false,
+        visible: true,
         opacity: 0.9,
         renderer: new UniqueValueRenderer({
           field: cfg.field,
@@ -1217,7 +1194,8 @@ require([
         popupEnabled: false
       });
       map.add(bl, 0); // insert below everything else
-      var cb = $(  'cb-' + cfg.id);
+      _boundaryLayers[cfg.id] = bl;
+      var cb = $('cb-' + cfg.id);
       if (cb) cb.addEventListener('change', function() { bl.visible = cb.checked; });
     });
 
@@ -1244,6 +1222,25 @@ require([
 
     _view.ui.add(new Home({ view:_view }), 'top-left');
     _view.ui.add(new ScaleBar({ view:_view, unit:'dual' }), 'bottom-right');
+
+    // Show "zoom in" badge on SVI/NRI toggles when layer is on but out of scale range
+    reactiveUtils.watch(
+      function() { return _view.scale; },
+      function(scale) {
+        var sviBadge = $('svi-zoom-badge');
+        var nriBadge = $('nri-zoom-badge');
+        if (sviBadge) sviBadge.style.display = (_sviLayer && _sviLayer.visible && scale > 3000000) ? 'inline' : 'none';
+        if (nriBadge) nriBadge.style.display = (_nriLayer && _nriLayer.visible && scale > 5000000) ? 'inline' : 'none';
+      }
+    );
+    $('cb-svi').addEventListener('change', function() {
+      var badge = $('svi-zoom-badge');
+      if (badge) badge.style.display = ($('cb-svi').checked && _view.scale > 3000000) ? 'inline' : 'none';
+    });
+    $('cb-nri').addEventListener('change', function() {
+      var badge = $('nri-zoom-badge');
+      if (badge) badge.style.display = ($('cb-nri').checked && _view.scale > 5000000) ? 'inline' : 'none';
+    });
     _view.ui.add(new Expand({
       view:_view, expandTooltip:'Legend',
       expandIconClass:'esri-icon-legend',
@@ -1274,17 +1271,6 @@ require([
           .replace('%s',f.type).replace('%s',f.name));
       });
       console.log('Field map:', _fieldMap);
-
-      // Field panel in sidebar
-      var html = '<strong style="display:block;margin-bottom:4px;color:#888">Detected Fields</strong>';
-      Object.keys(_fieldMap).forEach(function(k) {
-        var v = _fieldMap[k];
-        html += '<span class="' + (v?'field-found':'field-missing') + '">' +
-                (v?'✓':'✗') + '</span> <strong>' + k + ':</strong> ' +
-                (v || 'not found') + '<br>';
-      });
-      fieldPanel.innerHTML = html;
-      fieldPanel.style.display = 'block';
 
       // Popup template
       fl.popupTemplate = new PopupTemplate({

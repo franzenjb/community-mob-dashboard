@@ -486,32 +486,9 @@
 
 </div>
 
-<!-- OAuth callback handler -->
-<script>
-  var _isOAuthCallback = false;
-  (function() {
-    var h = window.location.hash;
-    if (h && h.indexOf('access_token') !== -1) {
-      _isOAuthCallback = true;
-      var p = {};
-      h.replace(/^#/,'').split('&').forEach(function(s) {
-        var kv = s.split('='); p[kv[0]] = decodeURIComponent(kv[1]||'');
-      });
-      if (p.access_token) {
-        try { window.opener.postMessage({type:'arcgis_oauth_token',token:p.access_token},'*'); } catch(e){}
-        try { window.opener._arcgisToken = p.access_token; } catch(e){}
-      }
-      window.close();
-    }
-  })();
-</script>
-
 <script src="https://js.arcgis.com/4.31/"></script>
 <script>
-if (!_isOAuthCallback) {
 require([
-  "esri/identity/OAuthInfo",
-  "esri/identity/IdentityManager",
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
@@ -527,7 +504,7 @@ require([
   "esri/layers/CSVLayer",
   "esri/core/reactiveUtils"
 ], function(
-  OAuthInfo, IdentityManager, Map, MapView, FeatureLayer,
+  Map, MapView, FeatureLayer,
   UniqueValueRenderer, ClassBreaksRenderer,
   SimpleMarkerSymbol, SimpleFillSymbol,
   Home, ScaleBar, Expand, Legend, PopupTemplate, CSVLayer, reactiveUtils
@@ -537,7 +514,6 @@ require([
   // CONFIG
   // ═══════════════════════════════════════════════════════════
   var PORTAL     = "https://arc-nhq-gis.maps.arcgis.com";
-  var APP_ID     = "fF4HEEDkYiLrDxBN";
   var FLARE_ITEM = "3c225e4e9c344c7bb5424acf1adfb982";
 
   // Reference layer URLs (from tract-profile-2)
@@ -1532,23 +1508,9 @@ function loadAllFilters() {
   // ═══════════════════════════════════════════════════════════
   wireChain();
 
-  setMsg('Authenticating...');
-  var oauthInfo = new OAuthInfo({ appId:APP_ID, portalUrl:PORTAL, popup:false });
-  IdentityManager.registerOAuthInfos([oauthInfo]);
-
-  IdentityManager.checkSignInStatus(PORTAL + '/sharing')
-    .then(function(){ initApp(); })
-    .catch(function() {
-      IdentityManager.getCredential(PORTAL + '/sharing')
-        .then(function(){ initApp(); })
-        .catch(function(err) {
-          console.error('Auth error:', err);
-          setMsg('Authentication failed — refresh to try again.');
-        });
-    });
+  initApp();
 
 });
-} // !_isOAuthCallback
 </script>
 </body>
 </html>

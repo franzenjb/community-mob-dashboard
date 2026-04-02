@@ -355,12 +355,12 @@
             <span>Divisions</span>
           </label>
           <label class="layer-row">
-            <input type="checkbox" id="cb-reg" checked>
+            <input type="checkbox" id="cb-reg">
             <div class="layer-color-swatch" style="background:#2D6DB4;border-radius:2px"></div>
             <span>Regions</span>
           </label>
           <label class="layer-row">
-            <input type="checkbox" id="cb-chap" checked>
+            <input type="checkbox" id="cb-chap">
             <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
             <span>Chapters</span>
           </label>
@@ -756,15 +756,17 @@ require([
       grp.values.forEach(function(v) { _catColorMap[v] = c; });
     });
 
+    // Build raw-value → canonical group label so all merged values share the exact same label string
+    var valToLabel = {};
+    merged.forEach(function(grp) {
+      grp.values.forEach(function(v) { valToLabel[v] = grp.label; });
+    });
+
     var infos = categories.map(function(val) {
       var c = _catColorMap[val] || '#888';
-      // Use the merged group label so merged items show under one legend entry (case-insensitive)
-      var valUp = String(val).trim().toUpperCase();
-      var mergedLabel = Object.keys(MERGE_INTO).find(function(k){ return k.trim().toUpperCase()===valUp; });
-      mergedLabel = mergedLabel ? MERGE_INTO[mergedLabel] : val;
       return {
         value: val,
-        label: mergedLabel,
+        label: valToLabel[val] || val,  // identical label → ArcGIS collapses to one legend entry
         symbol: new SimpleMarkerSymbol({
           style: 'circle', color: c, size: 8,
           outline: { color: [255,255,255,200], width: 1.2 }

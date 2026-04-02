@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Community Mobilization Dashboard</title>
+  <title>FLARE Dashboard — Fire Incidents</title>
   <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,23 +17,74 @@
       display: flex;
       align-items: center;
       padding: 0 20px;
-      gap: 12px;
+      gap: 10px;
       z-index: 30;
       position: relative;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      flex-shrink: 0;
     }
-    .header-title { font-size: 18px; font-weight: 800; letter-spacing: -0.2px; }
-    .header-sub { font-size: 12px; font-weight: 400; opacity: 0.75; margin-left: 2px; }
+    .header-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+    .header-pipe  { opacity: 0.35; font-weight: 300; font-size: 18px; }
+    .header-sub   { font-size: 13px; font-weight: 500; opacity: 0.8; }
 
-    /* ── Layout ── */
+    /* ── KPI Bar ── */
+    .kpi-bar {
+      height: 72px;
+      background: #1a1a2e;
+      display: flex;
+      align-items: stretch;
+      padding: 0;
+      flex-shrink: 0;
+      overflow-x: auto;
+    }
+    .kpi-tile {
+      flex: 1;
+      min-width: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      cursor: default;
+      position: relative;
+    }
+    .kpi-tile::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--kpi-color, #C41E3A);
+    }
+    .kpi-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+    }
+    .kpi-value.loading {
+      font-size: 14px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ── Body ── */
     .app-body {
       display: flex;
-      height: calc(100% - 52px);
+      height: calc(100% - 52px - 72px);
     }
 
     /* ── Filter Panel ── */
     .filter-panel {
-      width: 260px;
+      width: 270px;
       flex-shrink: 0;
       background: #fff;
       border-right: 1px solid #e0e0e0;
@@ -42,20 +93,16 @@
       overflow-y: auto;
       z-index: 20;
     }
-    .filter-section {
-      padding: 16px 16px 0;
-    }
+    .filter-section { padding: 14px 14px 0; }
     .filter-section-title {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #999;
-      margin-bottom: 10px;
+      color: #bbb;
+      margin-bottom: 8px;
     }
-    .filter-group {
-      margin-bottom: 14px;
-    }
+    .filter-group { margin-bottom: 12px; }
     .filter-label {
       display: block;
       font-size: 11px;
@@ -65,50 +112,48 @@
     }
     .filter-select {
       width: 100%;
-      padding: 7px 10px;
+      padding: 7px 28px 7px 10px;
       border: 1px solid #d0d0d0;
       border-radius: 4px;
       font-size: 13px;
       color: #1a1a2e;
       background: #fff;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 10px center;
       cursor: pointer;
       transition: border-color 0.15s;
     }
-    .filter-select:focus { outline: none; border-color: #C41E3A; }
-    .filter-select:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
+    .filter-select:focus { outline: none; border-color: #C41E3A; box-shadow: 0 0 0 2px rgba(196,30,58,0.1); }
+    .filter-select:disabled { background-color: #f7f7f7; color: #bbb; cursor: not-allowed; }
+    .filter-select.active { border-color: #C41E3A; background-color: #fff8f8; }
 
     /* Layer toggles */
-    .layer-toggle-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    .layer-toggle-list { display: flex; flex-direction: column; gap: 5px; }
     .layer-toggle {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 7px 10px;
-      border: 1px solid #e0e0e0;
+      border: 1px solid #e8e8e8;
       border-radius: 4px;
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s;
       font-size: 12px;
+      font-weight: 500;
       color: #333;
+      user-select: none;
     }
     .layer-toggle:hover { border-color: #C41E3A; background: #fdf5f6; }
-    .layer-toggle input[type="checkbox"] { accent-color: #C41E3A; cursor: pointer; }
-    .layer-toggle.single-layer { font-size: 12px; color: #666; font-style: italic; }
+    .layer-toggle input[type="checkbox"] { accent-color: #C41E3A; cursor: pointer; flex-shrink: 0; }
 
-    .divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0 14px; }
+    .divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0 12px; }
 
     .btn-clear {
       display: block;
-      width: calc(100% - 32px);
-      margin: 0 16px 16px;
+      width: calc(100% - 28px);
+      margin: 4px 14px 14px;
       padding: 9px;
       background: #fff;
       border: 1px solid #C41E3A;
@@ -119,15 +164,30 @@
       cursor: pointer;
       transition: all 0.15s;
       text-align: center;
+      letter-spacing: 0.3px;
     }
     .btn-clear:hover { background: #C41E3A; color: #fff; }
+    .btn-clear:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .filter-count {
-      margin: 0 16px 8px;
+      margin: 0 14px 6px;
       font-size: 12px;
-      color: #888;
+      color: #999;
     }
-    .filter-count span { font-weight: 700; color: #C41E3A; }
+    .filter-count strong { color: #C41E3A; }
+
+    /* Field debug strip */
+    .field-debug {
+      margin: 0 14px 10px;
+      padding: 8px 10px;
+      background: #f9f9f9;
+      border: 1px solid #e8e8e8;
+      border-radius: 4px;
+      font-size: 10px;
+      color: #aaa;
+      line-height: 1.6;
+    }
+    .field-debug strong { color: #888; }
 
     /* ── Map ── */
     #map-container { flex: 1; position: relative; }
@@ -137,47 +197,32 @@
     .loading-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(255,255,255,0.92);
+      background: rgba(255,255,255,0.93);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 100;
-      gap: 16px;
+      gap: 14px;
     }
     .loading-overlay.hidden { display: none; }
     .loading-spinner {
-      width: 36px; height: 36px;
+      width: 34px; height: 34px;
       border: 3px solid #e0e0e0;
       border-top-color: #C41E3A;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { font-size: 14px; color: #555; }
+    .loading-text { font-size: 13px; color: #666; }
 
-    /* ── Status badge ── */
-    .status-badge {
-      position: absolute;
-      bottom: 12px;
-      left: 16px;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      padding: 5px 10px;
-      font-size: 11px;
-      color: #888;
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    /* ── Skeleton loaders ── */
+    /* ── Skeleton ── */
     .skeleton {
-      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%);
       background-size: 200% 100%;
       animation: shimmer 1.2s infinite;
       border-radius: 4px;
-      height: 32px;
+      height: 30px;
       width: 100%;
     }
     @keyframes shimmer { to { background-position: -200% 0; } }
@@ -185,17 +230,28 @@
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
-  <div>
-    <div class="header-title">Community Mobilization</div>
-  </div>
-  <div class="header-sub">Dashboard</div>
+  <div class="header-title">FLARE</div>
+  <div class="header-pipe">|</div>
+  <div class="header-sub">Fire Incidents Dashboard</div>
 </div>
 
+<!-- KPI Bar -->
+<div class="kpi-bar" id="kpi-bar">
+  <div class="kpi-tile" style="--kpi-color:#C41E3A">
+    <div class="kpi-label">Total Incidents</div>
+    <div class="kpi-value loading" id="kpi-total">—</div>
+  </div>
+  <!-- Category KPIs injected dynamically -->
+</div>
+
+<!-- Body -->
 <div class="app-body">
 
   <!-- Filter Panel -->
   <div class="filter-panel">
+
     <div class="filter-section">
       <div class="filter-section-title">Layers</div>
       <div id="layer-toggles" class="layer-toggle-list">
@@ -203,7 +259,7 @@
       </div>
     </div>
 
-    <div class="filter-section" style="padding-top: 14px;">
+    <div class="filter-section" style="padding-top:12px;">
       <hr class="divider">
       <div class="filter-section-title">Filters</div>
 
@@ -237,10 +293,13 @@
     </div>
 
     <div class="filter-count" id="filter-count" style="display:none">
-      Showing <span id="count-num">—</span> features
+      Showing <strong id="count-num">—</strong> features
     </div>
 
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
+
+    <div class="field-debug" id="field-debug" style="display:none"></div>
+
   </div>
 
   <!-- Map -->
@@ -250,12 +309,11 @@
       <div class="loading-spinner"></div>
       <div class="loading-text" id="loadingText">Authenticating...</div>
     </div>
-    <div class="status-badge" id="status-badge" style="display:none"></div>
   </div>
 
 </div>
 
-<!-- OAuth callback handler — runs before main app -->
+<!-- OAuth callback -->
 <script>
   var _isOAuthCallback = false;
   var hash = window.location.hash;
@@ -267,9 +325,7 @@
     });
     var _t = params['access_token'];
     if (_t) {
-      // Pass token to opener
       try { window.opener.postMessage({ type: 'arcgis_oauth_token', token: _t }, '*'); } catch(e) {}
-      // Also set on opener directly (same-origin)
       try { window.opener._arcgisToken = _t; } catch(e) {}
     }
     window.close();
@@ -285,32 +341,44 @@ require([
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
+  "esri/renderers/UniqueValueRenderer",
+  "esri/symbols/SimpleMarkerSymbol",
   "esri/widgets/Home",
   "esri/widgets/ScaleBar",
-  "esri/widgets/Legend",
   "esri/widgets/Expand",
-  "esri/core/reactiveUtils"
+  "esri/widgets/Legend"
 ], function(OAuthInfo, IdentityManager, Map, MapView, FeatureLayer,
-            Home, ScaleBar, Legend, Expand, reactiveUtils) {
+            UniqueValueRenderer, SimpleMarkerSymbol,
+            Home, ScaleBar, Expand, Legend) {
 
-  // ── Config ──────────────────────────────────────────────────────────
-  var PORTAL_URL   = "https://arc-nhq-gis.maps.arcgis.com";
-  var APP_ID       = "fF4HEEDkYiLrDxBN";
+  // ── Config ────────────────────────────────────────────────────────
+  var PORTAL_URL    = "https://arc-nhq-gis.maps.arcgis.com";
+  var APP_ID        = "fF4HEEDkYiLrDxBN";
   var LAYER_ITEM_ID = "3c225e4e9c344c7bb5424acf1adfb982";
 
-  // Candidate field names for each filter (tried in order)
+  // KPI category colors (index 0 = default/total already in header)
+  var CAT_COLORS = ["#E63950", "#F59E0B", "#10B981", "#6366F1", "#F97316", "#06B6D4"];
+
+  // Field candidate lists — tried in order, first match wins
   var FIELD_CANDIDATES = {
-    region:  ["Region", "REGION", "RegionName", "region_name", "REGION_NAME", "Div_Name", "Division"],
-    chapter: ["Chapter", "CHAPTER", "ChapterName", "chapter_name", "CHAPTER_NAME", "Chap_Name"],
-    county:  ["County", "COUNTY", "CountyName", "county_name", "COUNTY_NAME", "Co_Name"],
-    city:    ["City", "CITY", "CityName", "city_name", "Muni_Name", "Municipality", "Place"]
+    region:      ["Region", "REGION", "region_name", "RegionName", "Div_Name", "Division", "DIVISION"],
+    chapter:     ["Chapter", "CHAPTER", "chapter_name", "ChapterName", "Chap_Name", "CHAP_NAME"],
+    county:      ["county", "County", "COUNTY", "county_name", "County_Name", "cnty_name",
+                  "cnty_nm", "CNTY_NAME", "CO_NAME", "co_name"],
+    city:        ["city", "City", "CITY", "city_name", "City_Name", "muni_name", "Muni_Name",
+                  "MUNI_NAME", "municipality", "Municipality", "place", "Place", "place_name"],
+    masterLabel: ["MasterLabel", "master_label", "masterLabel", "Master_Label",
+                  "MASTER_LABEL", "Label", "label", "Category", "category",
+                  "IncidentType", "incident_type", "Type", "type", "DwellingType",
+                  "dwelling_type", "Structure_Type", "ResidentType"]
   };
 
-  // ── State ────────────────────────────────────────────────────────────
-  var _layers       = [];   // { layer: FeatureLayer, id, title, fieldMap }
+  // ── State ─────────────────────────────────────────────────────────
+  var _layers      = [];
   var _activeFilter = { region: "", chapter: "", county: "", city: "" };
+  var _masterLabelField = null;
 
-  // ── DOM refs ─────────────────────────────────────────────────────────
+  // ── DOM ───────────────────────────────────────────────────────────
   var loadingOverlay = document.getElementById('loadingOverlay');
   var loadingText    = document.getElementById('loadingText');
   var selRegion      = document.getElementById('sel-region');
@@ -320,75 +388,180 @@ require([
   var layerToggles   = document.getElementById('layer-toggles');
   var filterCount    = document.getElementById('filter-count');
   var countNum       = document.getElementById('count-num');
-  var statusBadge    = document.getElementById('status-badge');
   var btnClear       = document.getElementById('btn-clear');
+  var kpiBar         = document.getElementById('kpi-bar');
+  var kpiTotal       = document.getElementById('kpi-total');
+  var fieldDebug     = document.getElementById('field-debug');
 
-  // ── Helpers ──────────────────────────────────────────────────────────
   function setLoading(text) {
-    loadingText.textContent = text || 'Loading...';
+    loadingText.textContent = text;
     loadingOverlay.classList.remove('hidden');
   }
-  function hideLoading() {
-    loadingOverlay.classList.add('hidden');
-  }
-  function setStatus(text) {
-    statusBadge.style.display = text ? 'block' : 'none';
-    statusBadge.textContent = text;
-  }
+  function hideLoading() { loadingOverlay.classList.add('hidden'); }
 
-  /** Find the first matching field name from candidates */
+  // ── Field resolution ──────────────────────────────────────────────
   function resolveField(fields, key) {
     var names = fields.map(function(f) { return f.name; });
     var candidates = FIELD_CANDIDATES[key] || [];
     for (var i = 0; i < candidates.length; i++) {
       if (names.indexOf(candidates[i]) !== -1) return candidates[i];
     }
-    // Last resort: case-insensitive partial match
-    var k = key.toLowerCase();
+    // Case-insensitive fallback
+    var k = key.toLowerCase().replace(/[_\s]/g, '');
     for (var j = 0; j < names.length; j++) {
-      if (names[j].toLowerCase().indexOf(k) !== -1) return names[j];
+      if (names[j].toLowerCase().replace(/[_\s]/g, '').indexOf(k) !== -1) return names[j];
     }
     return null;
   }
 
-  /** Query unique values for a field across all visible layers */
-  function queryUniqueValues(fieldKey) {
-    var promises = _layers
-      .filter(function(l) { return l.fieldMap[fieldKey] && l.layer.visible; })
-      .map(function(l) {
-        return l.layer.queryFeatures({
-          where: "1=1",
-          outFields: [l.fieldMap[fieldKey]],
-          returnDistinctValues: true,
-          returnGeometry: false,
-          orderByFields: [l.fieldMap[fieldKey] + " ASC"]
-        }).then(function(result) {
-          return result.features.map(function(f) {
-            return f.attributes[l.fieldMap[fieldKey]];
-          }).filter(function(v) { return v != null && v !== ""; });
-        });
-      });
+  function getFieldAlias(layer, fieldName) {
+    if (!fieldName) return fieldName;
+    var f = layer.fields.find(function(x) { return x.name === fieldName; });
+    return (f && f.alias) ? f.alias : fieldName;
+  }
 
-    return Promise.all(promises).then(function(arrays) {
-      var merged = [].concat.apply([], arrays);
-      // Deduplicate + sort
-      var seen = {};
-      return merged.filter(function(v) {
-        if (seen[v]) return false;
-        seen[v] = true;
-        return true;
-      }).sort();
+  // ── Renderer ─────────────────────────────────────────────────────
+  function buildUniqueValueRenderer(layer, fieldName, uniqueValues) {
+    var infos = uniqueValues.map(function(val, i) {
+      var color = CAT_COLORS[i % CAT_COLORS.length];
+      return {
+        value: val,
+        label: val || '(blank)',
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: color,
+          size: 8,
+          outline: { color: [255,255,255,180], width: 1 }
+        })
+      };
+    });
+
+    return new UniqueValueRenderer({
+      field: fieldName,
+      uniqueValueInfos: infos,
+      defaultSymbol: new SimpleMarkerSymbol({
+        style: 'circle',
+        color: [150, 150, 150, 180],
+        size: 7,
+        outline: { color: [255,255,255,180], width: 1 }
+      }),
+      defaultLabel: 'Other'
     });
   }
 
-  /** Populate a <select> with values */
-  function populateSelect(sel, values, placeholder, key) {
-    sel.innerHTML = '';
-    var opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = placeholder + ' (All)';
-    sel.appendChild(opt);
+  // ── KPI bar ───────────────────────────────────────────────────────
+  function buildCategoryKpiTiles(categories) {
+    // Remove existing category tiles (keep first — Total)
+    var existing = kpiBar.querySelectorAll('.kpi-tile.cat-tile');
+    existing.forEach(function(el) { el.remove(); });
 
+    categories.forEach(function(cat, i) {
+      var color = CAT_COLORS[i % CAT_COLORS.length];
+      var tile = document.createElement('div');
+      tile.className = 'kpi-tile cat-tile';
+      tile.style.setProperty('--kpi-color', color);
+      tile.innerHTML =
+        '<div class="kpi-label">' + (cat || 'Unknown') + '</div>' +
+        '<div class="kpi-value loading" id="kpi-cat-' + i + '">—</div>';
+      kpiBar.appendChild(tile);
+    });
+  }
+
+  function updateKpis() {
+    var where = buildWhereString();
+
+    // Total count
+    var layer = _layers.length > 0 ? _layers[0].layer : null;
+    if (!layer) return;
+
+    layer.queryFeatureCount({ where: where })
+      .then(function(n) {
+        kpiTotal.textContent = n.toLocaleString();
+        kpiTotal.classList.remove('loading');
+        countNum.textContent = n.toLocaleString();
+        filterCount.style.display = 'block';
+      })
+      .catch(function() {});
+
+    // Per-category counts
+    if (!_masterLabelField) return;
+
+    var catTiles = kpiBar.querySelectorAll('.kpi-tile.cat-tile');
+    catTiles.forEach(function(tile, i) {
+      var label = tile.querySelector('.kpi-label').textContent;
+      var catWhere = where === '1=1'
+        ? _masterLabelField + " = '" + label.replace(/'/g, "''") + "'"
+        : where + " AND " + _masterLabelField + " = '" + label.replace(/'/g, "''") + "'";
+
+      var valEl = tile.querySelector('.kpi-value');
+      valEl.classList.add('loading');
+      valEl.textContent = '—';
+
+      layer.queryFeatureCount({ where: catWhere })
+        .then(function(n) {
+          valEl.textContent = n.toLocaleString();
+          valEl.classList.remove('loading');
+        })
+        .catch(function() { valEl.textContent = '?'; });
+    });
+  }
+
+  // ── Where clause ─────────────────────────────────────────────────
+  function buildWhereString() {
+    var parts = [];
+    var layer = _layers.length > 0 ? _layers[0] : null;
+    if (!layer) return '1=1';
+    Object.keys(_activeFilter).forEach(function(key) {
+      var val = _activeFilter[key];
+      var field = layer.fieldMap[key];
+      if (val && field) {
+        parts.push(field + " = '" + val.replace(/'/g, "''") + "'");
+      }
+    });
+    return parts.length ? parts.join(' AND ') : '1=1';
+  }
+
+  function applyFilters() {
+    var where = buildWhereString();
+    _layers.forEach(function(l) { l.layer.definitionExpression = where; });
+
+    // Highlight active selects
+    [
+      { sel: selRegion,  key: 'region'  },
+      { sel: selChapter, key: 'chapter' },
+      { sel: selCounty,  key: 'county'  },
+      { sel: selCity,    key: 'city'    }
+    ].forEach(function(item) {
+      if (_activeFilter[item.key]) item.sel.classList.add('active');
+      else item.sel.classList.remove('active');
+    });
+
+    updateKpis();
+  }
+
+  // ── Unique value queries ──────────────────────────────────────────
+  function queryUniqueValues(fieldName) {
+    var layer = _layers.length > 0 ? _layers[0].layer : null;
+    if (!layer || !fieldName) return Promise.resolve([]);
+    return layer.queryFeatures({
+      where: '1=1',
+      outFields: [fieldName],
+      returnDistinctValues: true,
+      returnGeometry: false,
+      orderByFields: [fieldName + ' ASC']
+    }).then(function(result) {
+      return result.features
+        .map(function(f) { return f.attributes[fieldName]; })
+        .filter(function(v) { return v != null && String(v).trim() !== ''; });
+    });
+  }
+
+  function populateSelect(sel, values, label, key) {
+    sel.innerHTML = '';
+    var all = document.createElement('option');
+    all.value = '';
+    all.textContent = label + ' (All)';
+    sel.appendChild(all);
     values.forEach(function(v) {
       var o = document.createElement('option');
       o.value = v;
@@ -399,112 +572,79 @@ require([
     sel.disabled = values.length === 0;
   }
 
-  /** Build where clause from active filters */
-  function buildWhere() {
-    var clauses = [];
-    _layers.forEach(function(l) {
-      var parts = [];
-      Object.keys(_activeFilter).forEach(function(key) {
-        var val = _activeFilter[key];
-        var field = l.fieldMap[key];
-        if (val && field) {
-          parts.push(field + " = '" + val.replace(/'/g, "''") + "'");
-        }
-      });
-      l._currentWhere = parts.length ? parts.join(' AND ') : '1=1';
-    });
-  }
-
-  /** Apply filters to all layers */
-  function applyFilters() {
-    buildWhere();
-    _layers.forEach(function(l) {
-      l.layer.definitionExpression = l._currentWhere;
-    });
-    updateCount();
-  }
-
-  /** Count features across visible filtered layers */
-  function updateCount() {
-    var promises = _layers
-      .filter(function(l) { return l.layer.visible; })
-      .map(function(l) {
-        return l.layer.queryFeatureCount({
-          where: l._currentWhere || '1=1'
-        }).catch(function() { return 0; });
-      });
-
-    Promise.all(promises).then(function(counts) {
-      var total = counts.reduce(function(a, b) { return a + b; }, 0);
-      countNum.textContent = total.toLocaleString();
-      filterCount.style.display = 'block';
-    });
-  }
-
-  /** Load all filter dropdowns fresh */
   function loadFilters() {
-    var selects = [selRegion, selChapter, selCounty, selCity];
-    selects.forEach(function(s) { s.disabled = true; s.innerHTML = '<option>Loading...</option>'; });
+    var layer = _layers.length > 0 ? _layers[0] : null;
+    if (!layer) return;
 
-    var keys = ['region', 'chapter', 'county', 'city'];
-    var sels  = [selRegion, selChapter, selCounty, selCity];
-    var labels = ['Region', 'Chapter', 'County', 'City'];
+    var defs = [
+      { sel: selRegion,  key: 'region',  label: 'Region'  },
+      { sel: selChapter, key: 'chapter', label: 'Chapter' },
+      { sel: selCounty,  key: 'county',  label: 'County'  },
+      { sel: selCity,    key: 'city',    label: 'City'     }
+    ];
 
-    keys.forEach(function(key, i) {
-      queryUniqueValues(key).then(function(values) {
-        populateSelect(sels[i], values, labels[i], key);
-      }).catch(function(err) {
-        console.warn('Filter query failed for', key, err);
-        sels[i].innerHTML = '<option value="">— unavailable —</option>';
+    defs.forEach(function(d) {
+      d.sel.disabled = true;
+      d.sel.innerHTML = '<option>Loading...</option>';
+      var fieldName = layer.fieldMap[d.key];
+      if (!fieldName) {
+        d.sel.innerHTML = '<option value="">— not found —</option>';
+        return;
+      }
+      queryUniqueValues(fieldName).then(function(vals) {
+        populateSelect(d.sel, vals, d.label, d.key);
+      }).catch(function() {
+        d.sel.innerHTML = '<option value="">— error —</option>';
       });
     });
   }
 
-  /** Build layer toggle checkboxes */
+  // ── Layer toggles ─────────────────────────────────────────────────
   function buildLayerToggles() {
     layerToggles.innerHTML = '';
-    if (_layers.length === 0) {
-      layerToggles.innerHTML = '<div style="font-size:12px;color:#aaa;padding:4px 0">No layers found</div>';
-      return;
-    }
     _layers.forEach(function(l) {
-      var div = document.createElement('label');
-      div.className = 'layer-toggle';
-
+      var lbl = document.createElement('label');
+      lbl.className = 'layer-toggle';
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = l.layer.visible;
       cb.addEventListener('change', function() {
         l.layer.visible = cb.checked;
-        loadFilters();
         applyFilters();
       });
-
       var span = document.createElement('span');
       span.textContent = l.title;
-
-      div.appendChild(cb);
-      div.appendChild(span);
-      layerToggles.appendChild(div);
+      lbl.appendChild(cb);
+      lbl.appendChild(span);
+      layerToggles.appendChild(lbl);
     });
   }
 
-  // ── Filter change handlers ─────────────────────────────────────────
-  function onFilterChange(key, sel) {
-    _activeFilter[key] = sel.value;
-    applyFilters();
+  // ── Popup template ────────────────────────────────────────────────
+  function buildPopupTemplate(layer, fieldMap) {
+    // Build field list from aliases — exclude geometry/OID fields
+    var skipTypes = ['oid', 'geometry', 'blob', 'raster'];
+    var fields = layer.fields
+      .filter(function(f) { return skipTypes.indexOf(f.type) === -1; })
+      .map(function(f) { return { fieldName: f.name, label: f.alias || f.name }; });
+
+    var titleField = fieldMap.masterLabel || fieldMap.chapter || layer.displayField || fields[0].fieldName;
+
+    return {
+      title: '{' + titleField + '}',
+      content: [{ type: 'fields', fieldInfos: fields }]
+    };
   }
 
-  selRegion.addEventListener('change',  function() { onFilterChange('region',  selRegion);  });
-  selChapter.addEventListener('change', function() { onFilterChange('chapter', selChapter); });
-  selCounty.addEventListener('change',  function() { onFilterChange('county',  selCounty);  });
-  selCity.addEventListener('change',    function() { onFilterChange('city',    selCity);    });
+  // ── Filter event handlers ─────────────────────────────────────────
+  selRegion.addEventListener('change',  function() { _activeFilter.region  = selRegion.value;  applyFilters(); });
+  selChapter.addEventListener('change', function() { _activeFilter.chapter = selChapter.value; applyFilters(); });
+  selCounty.addEventListener('change',  function() { _activeFilter.county  = selCounty.value;  applyFilters(); });
+  selCity.addEventListener('change',    function() { _activeFilter.city    = selCity.value;    applyFilters(); });
 
   btnClear.addEventListener('click', function() {
     _activeFilter = { region: '', chapter: '', county: '', city: '' };
-    [selRegion, selChapter, selCounty, selCity].forEach(function(s) {
-      s.value = '';
-    });
+    [selRegion, selChapter, selCounty, selCity].forEach(function(s) { s.value = ''; });
     applyFilters();
   });
 
@@ -512,129 +652,110 @@ require([
   function initApp() {
     setLoading('Loading layer...');
 
-    var map = new Map({ basemap: 'gray-vector' });
+    var map  = new Map({ basemap: 'gray-vector' });
     var view = new MapView({
       container: 'viewDiv',
       map: map,
       zoom: 4,
-      center: [-98, 38] // Continental US
+      center: [-95, 38]
     });
 
-    // Add widgets
     view.ui.add(new Home({ view: view }), 'top-left');
     view.ui.add(new ScaleBar({ view: view, unit: 'dual' }), 'bottom-right');
-
-    var legendExpand = new Expand({
+    view.ui.add(new Expand({
       view: view,
       content: new Legend({ view: view }),
       expandIconClass: 'esri-icon-legend',
       expandTooltip: 'Legend'
-    });
-    view.ui.add(legendExpand, 'top-right');
+    }), 'top-right');
 
-    // ── Load the feature layer by item ID ────────────────────────────
-    // First probe the item to see if it's a single layer or a service with sublayers
-    var probeLayer = new FeatureLayer({
-      portalItem: {
-        id: LAYER_ITEM_ID,
-        portal: { url: PORTAL_URL }
-      }
+    var layer = new FeatureLayer({
+      portalItem: { id: LAYER_ITEM_ID, portal: { url: PORTAL_URL } }
     });
 
-    probeLayer.load().then(function() {
-      setLoading('Building filters...');
+    layer.load().then(function() {
+      setLoading('Building dashboard...');
 
-      // Check if this is a MapService/GroupLayer (has sublayers) or a single FeatureLayer
-      if (probeLayer.sublayers && probeLayer.sublayers.length > 0) {
-        // It's a map service — create a FeatureLayer per sublayer
-        probeLayer.sublayers.forEach(function(sub) {
-          var fl = new FeatureLayer({
-            url: probeLayer.url + '/' + sub.id,
-            title: sub.title || ('Layer ' + sub.id)
-          });
-          map.add(fl);
-          fl.load().then(function() {
-            var fieldMap = {};
-            Object.keys(FIELD_CANDIDATES).forEach(function(key) {
-              fieldMap[key] = resolveField(fl.fields, key);
-            });
-            _layers.push({ layer: fl, id: sub.id, title: fl.title, fieldMap: fieldMap });
-            console.log('Sublayer loaded:', fl.title, 'fieldMap:', fieldMap);
-            buildLayerToggles();
-            loadFilters();
-            updateCount();
-          });
+      // Resolve all fields
+      var fieldMap = {};
+      Object.keys(FIELD_CANDIDATES).forEach(function(key) {
+        fieldMap[key] = resolveField(layer.fields, key);
+      });
+
+      // Log everything to console for debugging
+      console.log('=== FLARE Layer Fields ===');
+      layer.fields.forEach(function(f) {
+        console.log('  ' + f.name + ' (' + f.type + ') — alias: ' + f.alias);
+      });
+      console.log('Resolved field map:', fieldMap);
+
+      // Show field map in debug strip
+      var debugLines = Object.keys(fieldMap).map(function(k) {
+        return '<strong>' + k + ':</strong> ' + (fieldMap[k] || '<span style="color:#e88">not found</span>');
+      }).join('<br>');
+      fieldDebug.innerHTML = debugLines;
+      fieldDebug.style.display = 'block';
+
+      _masterLabelField = fieldMap.masterLabel;
+
+      // Popup
+      layer.popupTemplate = buildPopupTemplate(layer, fieldMap);
+
+      // Renderer — apply after querying unique values for master label
+      if (_masterLabelField) {
+        queryUniqueValues(_masterLabelField).then(function(cats) {
+          console.log('Master label categories:', cats);
+          layer.renderer = buildUniqueValueRenderer(layer, _masterLabelField, cats);
+          buildCategoryKpiTiles(cats);
+          map.add(layer);
+          _layers.push({ layer: layer, title: layer.title || 'FLARE Incidents', fieldMap: fieldMap });
+          buildLayerToggles();
+          loadFilters();
+          updateKpis();
+        }).catch(function(err) {
+          console.warn('Could not query master label categories:', err);
+          map.add(layer);
+          _layers.push({ layer: layer, title: layer.title || 'FLARE Incidents', fieldMap: fieldMap });
+          buildLayerToggles();
+          loadFilters();
+          updateKpis();
         });
       } else {
-        // Single FeatureLayer
-        map.add(probeLayer);
-        var fieldMap = {};
-        Object.keys(FIELD_CANDIDATES).forEach(function(key) {
-          fieldMap[key] = resolveField(probeLayer.fields, key);
-        });
-        _layers.push({
-          layer: probeLayer,
-          id: probeLayer.id,
-          title: probeLayer.title || 'Community Mobilization',
-          fieldMap: fieldMap
-        });
-        console.log('Layer loaded:', probeLayer.title);
-        console.log('Fields:', probeLayer.fields.map(function(f) { return f.name; }).join(', '));
-        console.log('Field map:', fieldMap);
+        console.warn('Master label field not found — using default symbology');
+        map.add(layer);
+        _layers.push({ layer: layer, title: layer.title || 'FLARE Incidents', fieldMap: fieldMap });
         buildLayerToggles();
         loadFilters();
-        updateCount();
+        updateKpis();
       }
 
       view.when(function() {
         hideLoading();
-        // Zoom to layer extent if available
-        probeLayer.queryExtent().then(function(result) {
-          if (result && result.extent) view.goTo(result.extent.expand(1.1));
+        layer.queryExtent({ where: '1=1' }).then(function(r) {
+          if (r && r.extent) view.goTo(r.extent.expand(1.05));
         }).catch(function() {});
       });
 
     }).catch(function(err) {
-      console.error('Layer load failed:', err);
-      setLoading('Failed to load layer. Check console.');
-    });
-
-    // Log field names to console for debugging once view is ready
-    view.when(function() {
-      if (_layers.length > 0) {
-        console.log('=== Available fields ===');
-        _layers.forEach(function(l) {
-          console.log(l.title + ':', l.layer.fields.map(function(f) { return f.name + ' (' + f.type + ')'; }).join(', '));
-        });
-      }
+      console.error('Layer load error:', err);
+      setLoading('Layer failed to load — check console.');
     });
   }
 
   // ── Auth ──────────────────────────────────────────────────────────
   setLoading('Authenticating...');
 
-  var oauthInfo = new OAuthInfo({
-    appId: APP_ID,
-    portalUrl: PORTAL_URL,
-    popup: false
-  });
+  var oauthInfo = new OAuthInfo({ appId: APP_ID, portalUrl: PORTAL_URL, popup: false });
   IdentityManager.registerOAuthInfos([oauthInfo]);
 
   IdentityManager.checkSignInStatus(PORTAL_URL + '/sharing')
-    .then(function(cred) {
-      console.log('Already signed in:', cred.userId);
-      initApp();
-    })
+    .then(function() { initApp(); })
     .catch(function() {
-      // Not signed in — trigger OAuth redirect
       IdentityManager.getCredential(PORTAL_URL + '/sharing')
-        .then(function(cred) {
-          console.log('Signed in via OAuth:', cred.userId);
-          initApp();
-        })
+        .then(function() { initApp(); })
         .catch(function(err) {
-          console.error('Auth failed:', err);
-          setLoading('Sign-in failed. Please refresh and try again.');
+          console.error('Auth error:', err);
+          setLoading('Authentication failed — please refresh.');
         });
     });
 

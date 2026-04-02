@@ -741,8 +741,10 @@ require([
 
     var infos = categories.map(function(val) {
       var c = _catColorMap[val] || '#888';
-      // Use the merged group label so merged items show under one legend entry
-      var mergedLabel = MERGE_INTO[val] ? MERGE_INTO[val] : val;
+      // Use the merged group label so merged items show under one legend entry (case-insensitive)
+      var valUp = String(val).trim().toUpperCase();
+      var mergedLabel = Object.keys(MERGE_INTO).find(function(k){ return k.trim().toUpperCase()===valUp; });
+      mergedLabel = mergedLabel ? MERGE_INTO[mergedLabel] : val;
       return {
         value: val,
         label: mergedLabel,
@@ -803,11 +805,17 @@ require([
   // KPI BAR
   // ═══════════════════════════════════════════════════════════
   // Collapse categories per MERGE_INTO rules → [{label, values[]}]
+  // Case-insensitive: data may return mixed-case values that CSS renders as uppercase
   function mergedCategories(rawCats) {
     var groups = {};
     var order  = [];
+    // Build normalized (uppercase) lookup for MERGE_INTO keys
+    var mergeUpper = {};
+    Object.keys(MERGE_INTO).forEach(function(k) {
+      mergeUpper[k.trim().toUpperCase()] = MERGE_INTO[k];
+    });
     rawCats.forEach(function(cat) {
-      var target = MERGE_INTO[cat] || cat;
+      var target = mergeUpper[String(cat).trim().toUpperCase()] || cat;
       if (!groups[target]) { groups[target] = []; order.push(target); }
       groups[target].push(cat);
     });

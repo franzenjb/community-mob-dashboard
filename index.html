@@ -208,25 +208,93 @@
 <body>
 
 <!-- Help Modal -->
-<div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:10px;max-width:480px;width:90%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">
-    <button onclick="document.getElementById('help-modal').style.display='none'"
-            style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:#aaa">✕</button>
-    <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px">FLARE Dashboard</div>
-    <div style="font-size:12px;color:#999;margin-bottom:18px">Fire Incidents · American Red Cross</div>
-    <div style="font-size:13px;color:#444;line-height:1.7">
-      <strong>How to use</strong><br>
-      Use the <em>Division → Region → Chapter</em> drill-down to filter incidents and zoom to any geographic level.
-      County and City filters narrow further when available. The KPI bar updates live with each selection.
-      <br><br>
-      <strong>Reference Layers</strong><br>
-      Toggle <em>SVI</em> (CDC Social Vulnerability) and <em>NRI</em> (FEMA National Risk Index) overlays in the Layers section. Click any census tract for a detailed score breakdown.
-      <br><br>
-      <strong>Clear All Filters</strong> resets the drill-down and zooms back to the full US.
+<div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:#0f172a;border-radius:14px;max-width:540px;width:92%;
+              box-shadow:0 32px 80px rgba(0,0,0,0.6);position:relative;overflow:hidden;
+              border:1px solid rgba(255,255,255,0.08)">
+
+    <!-- Red header band -->
+    <div style="background:#C41E3A;padding:28px 28px 22px;position:relative">
+      <button onclick="document.getElementById('help-modal').style.display='none'"
+              style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.15);
+                     border:none;color:#fff;width:28px;height:28px;border-radius:50%;
+                     font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;
+                     justify-content:center;transition:background 0.15s"
+              onmouseover="this.style.background='rgba(255,255,255,0.25)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.15)'">✕</button>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;
+                  color:rgba(255,255,255,0.6);margin-bottom:6px">American Red Cross</div>
+      <div style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1">
+        FLARE Dashboard
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-top:4px">
+        Fire Learning and Response · CY2024
+      </div>
     </div>
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;font-size:12px;color:#888">
-      Questions or feedback?
-      <a href="mailto:jeff@jbf.com" style="color:#C41E3A;font-weight:600;text-decoration:none">jeff@jbf.com</a>
+
+    <!-- Body -->
+    <div style="padding:24px 28px 20px">
+
+      <!-- Feature cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:8px;padding:14px">
+          <div style="font-size:18px;margin-bottom:6px">🔍</div>
+          <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:4px">Drill-Down Filters</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+            Division → Region → Chapter → County → City. Each selection narrows options and zooms the map.
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:8px;padding:14px">
+          <div style="font-size:18px;margin-bottom:6px">📊</div>
+          <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:4px">Live KPIs</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+            Total incidents, RC response categories, divisions and chapters — all update instantly on filter.
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:8px;padding:14px">
+          <div style="font-size:18px;margin-bottom:6px">🗺️</div>
+          <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:4px">ARC Boundaries</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+            Toggle Division, Region, and Chapter outlines with labels from the Layers panel.
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:8px;padding:14px">
+          <div style="font-size:18px;margin-bottom:6px">🏘️</div>
+          <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:4px">SVI &amp; NRI Overlays</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+            CDC Social Vulnerability and FEMA National Risk Index. Click any tract for a score breakdown.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tips row -->
+      <div style="background:rgba(196,30,58,0.12);border:1px solid rgba(196,30,58,0.25);
+                  border-radius:6px;padding:10px 14px;font-size:11px;color:rgba(255,255,255,0.6);
+                  line-height:1.6">
+        <strong style="color:rgba(255,255,255,0.8)">Tips:</strong>
+        Click any incident for a detailed popup including SVI score.
+        Use <em>Clear All Filters</em> to reset and zoom back to the full US.
+        Boundary layers and SVI/NRI are off by default — toggle in the Layers panel.
+      </div>
+
+      <!-- Footer -->
+      <div style="margin-top:18px;font-size:10.5px;color:rgba(255,255,255,0.2);text-align:center;letter-spacing:0.3px">
+        Questions?
+        <a href="mailto:jeff.franzen2@redcross.org"
+           style="color:rgba(255,255,255,0.25);text-decoration:none"
+           onmouseover="this.style.color='rgba(255,255,255,0.5)'"
+           onmouseout="this.style.color='rgba(255,255,255,0.25)'">jeff.franzen2@redcross.org</a>
+      </div>
+
     </div>
   </div>
 </div>
@@ -237,7 +305,7 @@
   <div class="header-pipe">|</div>
   <div class="header-sub">Fire Incidents Dashboard</div>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-    <a href="mailto:jeff@jbf.com"
+    <a href="mailto:jeff.franzen2@redcross.org"
        style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;text-decoration:none;
               padding:5px 10px;border:1px solid rgba(255,255,255,0.3);border-radius:4px;
               transition:all 0.15s"

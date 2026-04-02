@@ -457,12 +457,13 @@ require([
   "esri/widgets/Expand",
   "esri/widgets/Legend",
   "esri/PopupTemplate",
+  "esri/layers/CSVLayer",
   "esri/core/reactiveUtils"
 ], function(
   OAuthInfo, IdentityManager, Map, MapView, FeatureLayer,
   UniqueValueRenderer, ClassBreaksRenderer,
   SimpleMarkerSymbol, SimpleFillSymbol,
-  Home, ScaleBar, Expand, Legend, PopupTemplate, reactiveUtils
+  Home, ScaleBar, Expand, Legend, PopupTemplate, CSVLayer, reactiveUtils
 ) {
 
   // ═══════════════════════════════════════════════════════════
@@ -805,21 +806,30 @@ require([
   // KPI BAR
   // ═══════════════════════════════════════════════════════════
   // Collapse categories per MERGE_INTO rules → [{label, values[]}]
-  // Case-insensitive: data may return mixed-case values that CSS renders as uppercase
+  // Fully case-insensitive: normalizes both source AND target keys
   function mergedCategories(rawCats) {
-    var groups = {};
-    var order  = [];
-    // Build normalized (uppercase) lookup for MERGE_INTO keys
+    var groupLabels = {};  // uppercased key → display label (canonical)
+    var groupVals   = {};  // uppercased key → [raw values]
+    var order       = [];  // uppercased keys in insertion order
+    // Build normalized MERGE_INTO lookup
     var mergeUpper = {};
     Object.keys(MERGE_INTO).forEach(function(k) {
       mergeUpper[k.trim().toUpperCase()] = MERGE_INTO[k];
     });
     rawCats.forEach(function(cat) {
-      var target = mergeUpper[String(cat).trim().toUpperCase()] || cat;
-      if (!groups[target]) { groups[target] = []; order.push(target); }
-      groups[target].push(cat);
+      var catUp  = String(cat).trim().toUpperCase();
+      var target = mergeUpper[catUp] || cat;          // canonical label
+      var tgtUp  = String(target).trim().toUpperCase(); // normalized key
+      if (!groupVals[tgtUp]) {
+        groupVals[tgtUp]   = [];
+        groupLabels[tgtUp] = target;
+        order.push(tgtUp);
+      }
+      groupVals[tgtUp].push(cat);
     });
-    return order.map(function(label) { return { label: label, values: groups[label] }; });
+    return order.map(function(k) {
+      return { label: groupLabels[k], values: groupVals[k] };
+    });
   }
 
   function buildKpiBar(categories) {

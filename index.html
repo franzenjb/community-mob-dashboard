@@ -1378,43 +1378,68 @@ function loadAllFilters() {
 
     $('cb-svi').addEventListener('change', function() { _sviLayer.visible = $('cb-svi').checked; });
     $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
+    // Load station CSV into memory for instant client-side typeahead
+    var _stationData = [];   // [{station_name, department_name, city, state, x, y}]
+    fetch('/stations.csv').then(function(r){ return r.text(); }).then(function(txt) {
+      var lines = txt.split('\n');
+      var headers = lines[0].replace(/^\uFEFF/,'').split(',');
+      var iName = headers.indexOf('station_name');
+      var iDept = headers.indexOf('department_name');
+      var iCity = headers.indexOf('city');
+      var iSt   = headers.indexOf('state');
+      var iX    = headers.indexOf('x');
+      var iY    = headers.indexOf('y');
+      for (var i = 1; i < lines.length; i++) {
+        var cols = lines[i].split(',');
+        if (cols.length < 5) continue;
+        _stationData.push({
+          station_name:    cols[iName] || '',
+          department_name: cols[iDept] || '',
+          city:            cols[iCity] || '',
+          state:           cols[iSt]   || '',
+          x: parseFloat(cols[iX]),
+          y: parseFloat(cols[iY])
+        });
+      }
+    });
+
     $('cb-stations').addEventListener('change', function() {
       var on = $('cb-stations').checked;
       _stationsLayer.visible = on;
       $('station-search-row').style.display = on ? '' : 'none';
-      if (!on) { $('station-search').value = ''; _stationsLayer.definitionExpression = '1=1'; }
+      if (!on) { $('station-search').value = ''; dd.style.display = 'none'; _stationsLayer.definitionExpression = '1=1'; }
     });
 
-    // Station typeahead — queries layer, shows dropdown list, zooms on select
+    // Typeahead — instant filter against in-memory _stationData
     var _stationTimer;
     var inp = $('station-search');
     var dd  = $('station-dropdown');
 
-    function showStationDropdown(features) {
+    function showStationDropdown(matches) {
       dd.innerHTML = '';
-      if (!features.length) {
+      if (!matches.length) {
         dd.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:#aaa">No results</div>';
         dd.style.display = '';
         return;
       }
-      features.forEach(function(f) {
-        var a = f.attributes;
+      matches.forEach(function(s) {
         var item = document.createElement('div');
         item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;line-height:1.35';
         item.innerHTML =
-          '<div style="font-weight:600;color:#222">' + (a.station_name || '—') + '</div>' +
-          '<div style="font-size:11px;color:#888">' + (a.department_name || '') +
-          (a.city ? ' · ' + a.city + ', ' + (a.state || '') : '') + '</div>';
+          '<div style="font-weight:600;color:#222">' + s.station_name + '</div>' +
+          '<div style="font-size:11px;color:#888">' + s.department_name +
+          (s.city ? ' · ' + s.city + ', ' + s.state : '') + '</div>';
         item.addEventListener('mousedown', function(e) {
           e.preventDefault();
-          inp.value = a.station_name || a.department_name || '';
+          inp.value = s.station_name || s.department_name;
           dd.style.display = 'none';
-          _stationsLayer.definitionExpression =
-            "station_name = '" + (a.station_name || '').replace(/'/g,"''") + "'";
-          if (f.geometry) _view.goTo({ target: f.geometry, zoom: 14 }, { duration: 600 });
+          var safe = (s.station_name || '').replace(/'/g,"''");
+          _stationsLayer.definitionExpression = safe ? "station_name = '" + safe + "'" : '1=1';
+          if (!isNaN(s.x) && !isNaN(s.y))
+            _view.goTo({ center:[s.x, s.y], zoom:14 }, { duration:600 });
         });
-        item.addEventListener('mouseover', function() { item.style.background = '#fdf5f6'; });
-        item.addEventListener('mouseout',  function() { item.style.background = ''; });
+        item.addEventListener('mouseover', function(){ item.style.background='#fdf5f6'; });
+        item.addEventListener('mouseout',  function(){ item.style.background=''; });
         dd.appendChild(item);
       });
       dd.style.display = '';
@@ -1422,21 +1447,19 @@ function loadAllFilters() {
 
     inp.addEventListener('input', function() {
       clearTimeout(_stationTimer);
-      var q = inp.value.trim();
-      if (!q) { dd.style.display = 'none'; _stationsLayer.definitionExpression = '1=1'; return; }
+      var q = inp.value.trim().toLowerCase();
+      if (!q) { dd.style.display='none'; _stationsLayer.definitionExpression='1=1'; return; }
       _stationTimer = setTimeout(function() {
-        var safe = q.replace(/'/g, "''");
-        _stationsLayer.queryFeatures({
-          where: "station_name LIKE '%" + safe + "%' OR department_name LIKE '%" + safe + "%'",
-          outFields: ['station_name','department_name','city','state'],
-          returnGeometry: true, num: 25,
-          orderByFields: ['station_name ASC']
-        }).then(function(r) { showStationDropdown(r.features); });
-      }, 300);
+        var matches = _stationData.filter(function(s) {
+          return s.station_name.toLowerCase().indexOf(q) !== -1 ||
+                 s.department_name.toLowerCase().indexOf(q) !== -1;
+        }).slice(0,25);
+        showStationDropdown(matches);
+      }, 200);
     });
 
-    inp.addEventListener('blur', function() { setTimeout(function(){ dd.style.display='none'; }, 150); });
-    inp.addEventListener('focus', function() { if (dd.children.length) dd.style.display=''; });
+    inp.addEventListener('blur',  function(){ setTimeout(function(){ dd.style.display='none'; }, 150); });
+    inp.addEventListener('focus', function(){ if (dd.children.length) dd.style.display=''; });
   }
 
   // ═══════════════════════════════════════════════════════════

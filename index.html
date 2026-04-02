@@ -259,8 +259,8 @@
       <div class="sb-title">Filters</div>
 
       <div class="filter-row">
-        <label class="filter-lbl" for="sel-state">State</label>
-        <select id="sel-state" class="fsel" disabled><option>Loading...</option></select>
+        <label class="filter-lbl" for="sel-division">Division</label>
+        <select id="sel-division" class="fsel" disabled><option>Loading...</option></select>
       </div>
       <div class="filter-row">
         <label class="filter-lbl" for="sel-region">Region</label>
@@ -367,8 +367,8 @@ require([
 
   // Field candidates — tried in order, first match wins
   var FIELDS = {
-    state:       ["state","State","STATE","state_name","State_Name","STATE_NAME","StateName"],
-    region:      ["Region","REGION","region_name","RegionName","Div_Name","Division"],
+    division:    ["Division","DIVISION","division_name","DivName","Div_Name","DIV_NAME","div_name"],
+    region:      ["Region","REGION","region_name","RegionName","REG_NAME","reg_name"],
     chapter:     ["Chapter","CHAPTER","chapter_name","ChapterName","Chap_Name","CHAP_NAME"],
     county:      ["county","County","COUNTY","county_name","County_Name","cnty_name",
                   "cnty_nm","CNTY_NAME","CNTY_NM","co_name","CO_NAME","county_nm"],
@@ -376,6 +376,7 @@ require([
                   "Muni_Name","MUNI_NAME","municipality","Municipality","place","Place",
                   "place_name","inc_city","INC_CITY","incident_city","Incident_City"],
     zip:         ["zip","ZIP","zip_code","ZIP_CODE","postal_code","ZipCode","Zip_Code","ZIPCODE"],
+    state:       ["state","State","STATE","state_name","State_Name","STATE_NAME","StateName"],
     masterLabel: ["MasterLabel","master_label","masterLabel","Master_Label","MASTER_LABEL",
                   "Label","label","Category","category","IncidentType","incident_type",
                   "DwellingType","dwelling_type","Structure_Type","structure_type",
@@ -395,7 +396,7 @@ require([
   var _fieldMap     = {};
   var _categories   = [];       // unique values for master label
   var _catColorMap  = {};       // value → color hex
-  var _activeFilter = { state:'', region:'', chapter:'', county:'', city:'', zip:'' };
+  var _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
   var _sviLayer     = null;
   var _nriLayer     = null;
   var _view         = null;
@@ -413,13 +414,34 @@ require([
   var countNum       = $('count-num');
   var fieldPanel     = $('field-panel');
   var btnClear       = $('btn-clear');
-  var selState       = $('sel-state');
+  var selDivision    = $('sel-division');
   var selRegion      = $('sel-region');
   var selChapter     = $('sel-chapter');
   var selCounty      = $('sel-county');
   var selCity        = $('sel-city');
   var selZip         = $('sel-zip');
   var zipRow         = $('zip-row');
+
+  // ── Cascade chain — order matters ───────────────────────────────────
+  var FILTER_CHAIN = [
+    { key:'division', label:'Division',         sel:null },  // wired after DOM ready
+    { key:'region',   label:'Region',           sel:null },
+    { key:'chapter',  label:'Chapter',          sel:null },
+    { key:'county',   label:'County',           sel:null },
+    { key:'city',     label:'City',             sel:null },
+    { key:'zip',      label:'ZIP Code',         sel:null }
+  ];
+  function wireChain() {
+    FILTER_CHAIN[0].sel = selDivision;
+    FILTER_CHAIN[1].sel = selRegion;
+    FILTER_CHAIN[2].sel = selChapter;
+    FILTER_CHAIN[3].sel = selCounty;
+    FILTER_CHAIN[4].sel = selCity;
+    FILTER_CHAIN[5].sel = selZip;
+    FILTER_CHAIN.forEach(function(item, idx) {
+      item.sel.addEventListener('change', function() { onChainChange(idx); });
+    });
+  }
 
   function setMsg(t) { loadingMsg.textContent = t; loadingOverlay.classList.remove('hidden'); }
   function hideLoad() { loadingOverlay.classList.add('hidden'); }
@@ -673,10 +695,11 @@ require([
       }).catch(function(){});
     });
 
-    // States affected
+    // Divisions represented
     var elS = $('kpi-states');
-    if (elS && _fieldMap.state) {
-      layer.queryFeatures({ where: where, outFields: [_fieldMap.state],
+    var divField = _fieldMap.division || _fieldMap.state;
+    if (elS && divField) {
+      layer.queryFeatures({ where: where, outFields: [divField],
         returnDistinctValues: true, returnGeometry: false })
         .then(function(r) {
           elS.textContent = r.features.length; elS.classList.remove('dim');
@@ -699,30 +722,44 @@ require([
   // ═══════════════════════════════════════════════════════════
   function buildWhere() {
     var parts = [];
-    Object.keys(_activeFilter).forEach(function(k) {
-      var v = _activeFilter[k]; var f = _fieldMap[k];
+    FILTER_CHAIN.forEach(function(item) {
+      var v = _activeFilter[item.key]; var f = _fieldMap[item.key];
       if (v && f) parts.push(f + "='" + v.replace(/'/g,"''") + "'");
     });
+    return parts.length ? parts.join(' AND ') : '1=1';
+  }
+
+  // Build where using only filters UP TO (not including) chainIndex
+  function buildWhereUpTo(chainIndex) {
+    var parts = [];
+    for (var i = 0; i < chainIndex; i++) {
+      var item = FILTER_CHAIN[i];
+      var v = _activeFilter[item.key]; var f = _fieldMap[item.key];
+      if (v && f) parts.push(f + "='" + v.replace(/'/g,"''") + "'");
+    }
     return parts.length ? parts.join(' AND ') : '1=1';
   }
 
   function applyFilters() {
     var w = buildWhere();
     if (_flareLayer) _flareLayer.definitionExpression = w;
-    // Highlight active selects
-    [
-      {s:selState,   k:'state'},   {s:selRegion,  k:'region'},
-      {s:selChapter, k:'chapter'}, {s:selCounty,  k:'county'},
-      {s:selCity,    k:'city'},    {s:selZip,     k:'zip'}
-    ].forEach(function(x) {
-      if (_activeFilter[x.k]) x.s.classList.add('has-value');
-      else x.s.classList.remove('has-value');
+    FILTER_CHAIN.forEach(function(item) {
+      if (_activeFilter[item.key]) item.sel.classList.add('has-value');
+      else item.sel.classList.remove('has-value');
     });
     updateKpis();
   }
 
-  function queryUnique(fieldName, extraWhere) {
-    var w = extraWhere || '1=1';
+  function zoomToFiltered() {
+    if (!_flareLayer || !_view) return;
+    var w = buildWhere();
+    _flareLayer.queryExtent({ where: w }).then(function(r) {
+      if (r && r.extent) _view.goTo(r.extent.expand(1.15), { duration: 700 });
+    }).catch(function(){});
+  }
+
+  function queryUnique(fieldName, whereClause) {
+    var w = whereClause || '1=1';
     return _flareLayer.queryFeatures({
       where: w, outFields: [fieldName],
       returnDistinctValues: true, returnGeometry: false,
@@ -745,52 +782,59 @@ require([
     sel.disabled = vals.length===0;
   }
 
-  function loadAllFilters() {
-    var defs = [
-      {s:selState,   k:'state',   l:'State'},
-      {s:selRegion,  k:'region',  l:'Region'},
-      {s:selChapter, k:'chapter', l:'Chapter'},
-      {s:selCounty,  k:'county',  l:'County'},
-      {s:selCity,    k:'city',    l:'City'},
-      {s:selZip,     k:'zip',     l:'ZIP Code'}
-    ];
-    defs.forEach(function(d) {
-      d.s.disabled=true; d.s.innerHTML='<option>Loading...</option>';
-      var f = _fieldMap[d.k];
-      if (!f) { d.s.innerHTML='<option value="">— not in data —</option>'; return; }
-      if (d.k==='zip') zipRow.style.display='block';
-      queryUnique(f).then(function(vals){ fillSelect(d.s,vals,d.l,d.k); })
-                    .catch(function(){ d.s.innerHTML='<option value="">— error —</option>'; });
-    });
+  // Reload options for chain[startIndex..end] using filters above startIndex
+  function reloadChainFrom(startIndex) {
+    for (var i = startIndex; i < FILTER_CHAIN.length; i++) {
+      (function(item, idx) {
+        var f = _fieldMap[item.key];
+        if (!f) {
+          item.sel.innerHTML = '<option value="">— not in data —</option>';
+          return;
+        }
+        if (item.key === 'zip') zipRow.style.display = 'block';
+        var contextWhere = buildWhereUpTo(idx);
+        item.sel.disabled = true;
+        item.sel.innerHTML = '<option>Loading...</option>';
+        queryUnique(f, contextWhere)
+          .then(function(vals) { fillSelect(item.sel, vals, item.label, item.key); })
+          .catch(function() { item.sel.innerHTML = '<option value="">— error —</option>'; });
+      })(FILTER_CHAIN[i], i);
+    }
   }
 
-  // Cascading: county → reload city
-  selCounty.addEventListener('change', function() {
-    _activeFilter.county = selCounty.value;
-    _activeFilter.city   = '';  selCity.value = '';
-    if (_fieldMap.city) {
-      selCity.disabled=true; selCity.innerHTML='<option>Loading...</option>';
-      var w = _activeFilter.county && _fieldMap.county
-        ? _fieldMap.county + "='" + _activeFilter.county.replace(/'/g,"''") + "'"
-        : '1=1';
-      queryUnique(_fieldMap.city, w)
-        .then(function(v){ fillSelect(selCity,v,'City','city'); })
-        .catch(function(){ selCity.innerHTML='<option value="">— error —</option>'; });
-    }
-    applyFilters();
-  });
+  // Called when a chain item changes — reset downstream, reload, zoom
+  function onChainChange(changedIndex) {
+    var item = FILTER_CHAIN[changedIndex];
+    _activeFilter[item.key] = item.sel.value;
 
-  selState.addEventListener('change',   function(){ _activeFilter.state   = selState.value;   applyFilters(); });
-  selRegion.addEventListener('change',  function(){ _activeFilter.region  = selRegion.value;  applyFilters(); });
-  selChapter.addEventListener('change', function(){ _activeFilter.chapter = selChapter.value; applyFilters(); });
-  selCity.addEventListener('change',    function(){ _activeFilter.city    = selCity.value;    applyFilters(); });
-  selZip.addEventListener('change',     function(){ _activeFilter.zip     = selZip.value;     applyFilters(); });
+    // Reset everything below
+    for (var i = changedIndex + 1; i < FILTER_CHAIN.length; i++) {
+      _activeFilter[FILTER_CHAIN[i].key] = '';
+      FILTER_CHAIN[i].sel.value = '';
+      FILTER_CHAIN[i].sel.classList.remove('has-value');
+    }
+
+    applyFilters();
+    reloadChainFrom(changedIndex + 1);
+
+    // Zoom only if a real value was selected (not "All")
+    if (item.sel.value) zoomToFiltered();
+  }
+
+  function loadAllFilters() {
+    _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
+    reloadChainFrom(0);
+  }
 
   btnClear.addEventListener('click', function() {
-    _activeFilter = {state:'',region:'',chapter:'',county:'',city:'',zip:''};
-    [selState,selRegion,selChapter,selCounty,selCity,selZip].forEach(function(s){ s.value=''; s.classList.remove('has-value'); });
+    _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
+    FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
     applyFilters();
-    loadAllFilters();
+    reloadChainFrom(0);
+    // Zoom back to 48 states
+    _view.goTo({
+      extent: { xmin:-125, ymin:24.5, xmax:-66.5, ymax:49.5, spatialReference:{wkid:4326} }
+    }, { duration: 700 });
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -966,6 +1010,8 @@ require([
   // ═══════════════════════════════════════════════════════════
   // AUTH
   // ═══════════════════════════════════════════════════════════
+  wireChain();
+
   setMsg('Authenticating...');
   var oauthInfo = new OAuthInfo({ appId:APP_ID, portalUrl:PORTAL, popup:false });
   IdentityManager.registerOAuthInfos([oauthInfo]);

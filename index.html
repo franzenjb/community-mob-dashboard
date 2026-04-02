@@ -868,7 +868,13 @@ require([
     setMsg('Loading layer...');
 
     var map  = new Map({ basemap: 'gray-vector' });
-    _view = new MapView({ container:'viewDiv', map:map, zoom:4, center:[-95,38] });
+    _view = new MapView({
+      container: 'viewDiv', map: map,
+      extent: {
+        xmin: -125.0, ymin: 24.5, xmax: -66.5, ymax: 49.5,
+        spatialReference: { wkid: 4326 }
+      }
+    });
 
     _view.ui.add(new Home({ view:_view }), 'top-left');
     _view.ui.add(new ScaleBar({ view:_view, unit:'dual' }), 'bottom-right');
@@ -935,9 +941,7 @@ require([
         updateKpis();
         _view.when(function() {
           hideLoad();
-          fl.queryExtent({ where:'1=1' }).then(function(r) {
-            if (r && r.extent) _view.goTo(r.extent.expand(1.05));
-          }).catch(function(){});
+          // Extent set at view creation — no auto-zoom
         });
       };
 

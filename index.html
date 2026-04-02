@@ -150,6 +150,13 @@
     }
     select.fsel:focus { outline: none; border-color: #C41E3A; box-shadow: 0 0 0 2px rgba(196,30,58,0.1); }
     select.fsel:disabled { background-color: #f5f5f5; color: #ccc; cursor: not-allowed; }
+    input.fsel {
+      width: 100%; padding: 7px 9px; border: 1px solid #d8d8d8; border-radius: 4px;
+      font-size: 12px; color: #222; background: #fff; cursor: text;
+      font-family: inherit; transition: border-color 0.13s;
+    }
+    input.fsel:focus { outline: none; border-color: #C41E3A; box-shadow: 0 0 0 2px rgba(196,30,58,0.1); }
+    input.fsel::placeholder { color: #aaa; }
     select.fsel.has-value { border-color: #C41E3A; background-color: #fff8f9; color: #C41E3A; font-weight: 600; }
 
     .divider { border: none; border-top: 1px solid #f0f0f0; margin: 6px 0 12px; }
@@ -446,6 +453,11 @@
         <label class="filter-lbl" for="sel-chapter">Chapter</label>
         <select id="sel-chapter" class="fsel" disabled><option>Loading...</option></select>
       </div>
+
+      <div class="filter-row" id="dept-filter-row" style="display:none">
+        <label class="filter-lbl" for="dept-search">Fire Department</label>
+        <input type="text" id="dept-search" class="fsel" placeholder="Search departments…">
+      </div>
     </div>
 
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
@@ -544,7 +556,10 @@ require([
   ];
 
   // Categories to merge: 'Fire with RC Care' rolls into 'Fire with RC Notification'
-  var MERGE_INTO = { 'FIRE WITH RC CARE': 'FIRE WITH RC NOTIFICATION' };
+  var MERGE_INTO = {
+    'FIRE WITH RC CARE':         'Fire with RC Notification',
+    'FIRE WITH RC NOTIFICATION': 'Fire with RC Notification'   // normalize all-caps data variant
+  };
 
   // Category colors: index 0..N for each unique master label value
   var CAT_COLORS = ["#E63950","#F59E0B","#10B981","#6366F1","#F97316","#06B6D4","#8B5CF6"];
@@ -570,7 +585,11 @@ require([
                   "Location","location","Street_Address","street_address"],
     fireDept:    ["FD_Name","fd_name","FireDepartment","fire_department","FireDept","fire_dept",
                   "DeptName","dept_name","Department","department","Agency","agency",
-                  "AgencyName","agency_name","FDName","Fire_Department_Name","dept"],
+                  "AgencyName","agency_name","FDName","Fire_Department_Name","dept",
+                  "Organization","organization","Org","org","Jurisdiction","jurisdiction",
+                  "ResponsibleOrg","responsible_org","RespondingOrg","responding_org",
+                  "FD_Jurisdiction","fd_jurisdiction","FireDept_Name","fire_dept_name",
+                  "FD","fd","FDDesc","fd_desc","FireDepartmentName","fire_department_name"],
     casualties:  ["Casualties","casualties","Deaths","deaths","Fatalities","fatalities","Injuries","injuries"]
   };
 
@@ -589,6 +608,7 @@ require([
   var _kpiTotal        = 0;
   var _showWith        = true;
   var _showWithout     = true;
+  var _deptSearch      = '';
   var _boundaryLayers  = {};   // id → FeatureLayer (div, reg, chap)
 
   // Filter key → boundary layer id (auto-enable on select)
@@ -807,11 +827,26 @@ require([
       grp.values.forEach(function(v) { valToLabel[v] = grp.label; });
     });
 
-    var infos = categories.map(function(val) {
-      var c = _catColorMap[val] || '#888';
+    // Build Arcade expression: normalize every raw value → its canonical group label.
+    // This guarantees exactly ONE legend entry per merged group (no duplicates).
+    var arcLines = ['var raw = $feature["' + fieldName + '"];'];
+    Object.keys(valToLabel).forEach(function(rawVal) {
+      var label = valToLabel[rawVal];
+      if (rawVal !== label) {   // only emit lines for non-identity mappings
+        arcLines.push(
+          'if (Upper(raw) == "' + rawVal.toUpperCase().replace(/"/g, '\\"') +
+          '") return "' + label.replace(/"/g, '\\"') + '";'
+        );
+      }
+    });
+    arcLines.push('return raw;');
+
+    // One uniqueValueInfo per merged group → exactly one legend entry per group
+    var infos = merged.map(function(grp) {
+      var c = catColor(grp.label);
       return {
-        value: val,
-        label: valToLabel[val] || val,  // identical label → ArcGIS collapses to one legend entry
+        value: grp.label,
+        label: grp.label,
         symbol: new SimpleMarkerSymbol({
           style: 'circle', color: c, size: 8,
           outline: { color: [255,255,255,200], width: 1.2 }
@@ -820,9 +855,8 @@ require([
     });
 
     return new UniqueValueRenderer({
-      field: fieldName,
+      valueExpression: arcLines.join('\n'),
       uniqueValueInfos: infos
-      // No defaultSymbol → removes "Other" from legend entirely
     });
   }
 
@@ -1008,6 +1042,10 @@ require([
         parts.push('(' + catClause + ')');
       }
     }
+    // Fire department text search
+    if (_deptSearch && _fieldMap.fireDept) {
+      parts.push(_fieldMap.fireDept + " LIKE '%" + _deptSearch.replace(/'/g,"''") + "%'");
+    }
     return parts.length ? parts.join(' AND ') : '1=1';
   }
 
@@ -1130,6 +1168,7 @@ function loadAllFilters() {
   btnClear.addEventListener('click', function() {
     _activeFilter = { division:'', region:'', chapter:'', county:'' };
     FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
+    _deptSearch = ''; var deptInp = $('dept-search'); if (deptInp) deptInp.value = '';
     applyFilters();
     reloadChainFrom(0);
     // Zoom back to 48 states
@@ -1149,6 +1188,23 @@ function loadAllFilters() {
     });
     if (cbWithout) cbWithout.addEventListener('change', function() {
       _showWithout = cbWithout.checked; applyFilters(); updateKpis();
+    });
+  }
+
+  // Fire department text search — only shown when field is mapped in data
+  function buildDeptSearch() {
+    var row = $('dept-filter-row');
+    var inp = $('dept-search');
+    if (!row || !inp || !_fieldMap.fireDept) return;
+    row.style.display = '';   // reveal the row
+    var timer;
+    inp.addEventListener('input', function() {
+      clearTimeout(timer);
+      timer = setTimeout(function() {
+        _deptSearch = inp.value.trim();
+        applyFilters();
+        updateKpis();
+      }, 400);
     });
   }
 
@@ -1444,6 +1500,7 @@ function loadAllFilters() {
       var afterRenderer = function() {
         map.add(fl);
         buildIncidentToggles();
+        buildDeptSearch();
         loadAllFilters();
         updateKpis();
         _view.when(function() {

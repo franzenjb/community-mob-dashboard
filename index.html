@@ -207,11 +207,51 @@
 </head>
 <body>
 
+<!-- Help Modal -->
+<div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:10px;max-width:480px;width:90%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">
+    <button onclick="document.getElementById('help-modal').style.display='none'"
+            style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:#aaa">✕</button>
+    <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px">FLARE Dashboard</div>
+    <div style="font-size:12px;color:#999;margin-bottom:18px">Fire Incidents · American Red Cross</div>
+    <div style="font-size:13px;color:#444;line-height:1.7">
+      <strong>How to use</strong><br>
+      Use the <em>Division → Region → Chapter</em> drill-down to filter incidents and zoom to any geographic level.
+      County and City filters narrow further when available. The KPI bar updates live with each selection.
+      <br><br>
+      <strong>Reference Layers</strong><br>
+      Toggle <em>SVI</em> (CDC Social Vulnerability) and <em>NRI</em> (FEMA National Risk Index) overlays in the Layers section. Click any census tract for a detailed score breakdown.
+      <br><br>
+      <strong>Clear All Filters</strong> resets the drill-down and zooms back to the full US.
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;font-size:12px;color:#888">
+      Questions or feedback?
+      <a href="mailto:jeff@jbf.com" style="color:#C41E3A;font-weight:600;text-decoration:none">jeff@jbf.com</a>
+    </div>
+  </div>
+</div>
+
 <!-- Header -->
 <div class="header">
   <div class="header-title">FLARE</div>
   <div class="header-pipe">|</div>
   <div class="header-sub">Fire Incidents Dashboard</div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <a href="mailto:jeff@jbf.com"
+       style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;text-decoration:none;
+              padding:5px 10px;border:1px solid rgba(255,255,255,0.3);border-radius:4px;
+              transition:all 0.15s"
+       onmouseover="this.style.color='#fff';this.style.borderColor='rgba(255,255,255,0.7)'"
+       onmouseout="this.style.color='rgba(255,255,255,0.7)';this.style.borderColor='rgba(255,255,255,0.3)'">
+      ✉ Contact
+    </a>
+    <button onclick="document.getElementById('help-modal').style.display='flex'"
+            style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);
+                   color:#fff;font-size:13px;font-weight:700;width:28px;height:28px;
+                   border-radius:50%;cursor:pointer;transition:background 0.15s"
+            onmouseover="this.style.background='rgba(255,255,255,0.25)'"
+            onmouseout="this.style.background='rgba(255,255,255,0.15)'">?</button>
+  </div>
 </div>
 
 <!-- KPI Bar -->
@@ -257,6 +297,9 @@
     <div class="sb-section">
       <hr class="divider">
       <div class="sb-title">Filters</div>
+      <div id="breadcrumb" style="display:none;margin-bottom:10px;padding:7px 10px;
+           background:#fdf5f6;border:1px solid #f5c6cc;border-radius:4px;
+           font-size:11px;color:#C41E3A;line-height:1.5;word-break:break-word"></div>
 
       <div class="filter-row">
         <label class="filter-lbl" for="sel-division">Division</label>
@@ -370,11 +413,14 @@ require([
     division:    ["Division","DIVISION","division_name","DivName","Div_Name","DIV_NAME","div_name"],
     region:      ["Region","REGION","region_name","RegionName","REG_NAME","reg_name"],
     chapter:     ["Chapter","CHAPTER","chapter_name","ChapterName","Chap_Name","CHAP_NAME"],
-    county:      ["county","County","COUNTY","county_name","County_Name","cnty_name",
-                  "cnty_nm","CNTY_NAME","CNTY_NM","co_name","CO_NAME","county_nm"],
+    county:      ["county","County","COUNTY","county_name","County_Name","COUNTY_NAME",
+                  "cnty_name","cnty_nm","CNTY_NAME","CNTY_NM","co_name","CO_NAME",
+                  "county_nm","CountyName","Cnty_Name","IncidentCounty","incident_county",
+                  "prop_county","PropCounty","CountyFull","county_full"],
     city:        ["city","City","CITY","city_name","City_Name","CITY_NAME","muni_name",
                   "Muni_Name","MUNI_NAME","municipality","Municipality","place","Place",
-                  "place_name","inc_city","INC_CITY","incident_city","Incident_City"],
+                  "place_name","inc_city","INC_CITY","incident_city","Incident_City",
+                  "CityName","prop_city","PropCity","CityMuni","city_muni","IncidentCity"],
     zip:         ["zip","ZIP","zip_code","ZIP_CODE","postal_code","ZipCode","Zip_Code","ZIPCODE"],
     state:       ["state","State","STATE","state_name","State_Name","STATE_NAME","StateName"],
     masterLabel: ["MasterLabel","master_label","masterLabel","Master_Label","MASTER_LABEL",
@@ -490,9 +536,9 @@ require([
       return v.toFixed(2) + '°N';
     if (/^(lon|long|longitude)$/i.test(fieldName) && typeof v === 'number')
       return v.toFixed(2) + '°W';
-    // Format SVI as percentile
+    // Format SVI as percentage
     if (/svi/i.test(fieldName) && typeof v === 'number' && v >= 0 && v <= 1)
-      return Math.round(v * 100) + 'th percentile';
+      return Math.round(v * 100) + '%';
     // Format dates
     if (typeof v === 'number' && v > 1000000000000)
       return new Date(v).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
@@ -782,11 +828,15 @@ require([
     updateKpis();
   }
 
-  function zoomToFiltered() {
+  function zoomToFiltered(chainIndex) {
     if (!_flareLayer || !_view) return;
     var w = buildWhere();
     _flareLayer.queryExtent({ where: w }).then(function(r) {
-      if (r && r.extent) _view.goTo(r.extent.expand(1.15), { duration: 700 });
+      if (!r || !r.extent) return;
+      // Tighter expand at deeper levels; Division/Region stay loose
+      var expand = chainIndex <= 1 ? 1.05 : chainIndex <= 2 ? 1.04 : 1.08;
+      _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
+           .catch(function(){});
     }).catch(function(){});
   }
 
@@ -850,12 +900,24 @@ require([
     reloadChainFrom(changedIndex + 1);
 
     // Zoom only if a real value was selected (not "All")
-    if (item.sel.value) zoomToFiltered();
+    if (item.sel.value) zoomToFiltered(changedIndex);
+    updateBreadcrumb();
+  }
+
+  function updateBreadcrumb() {
+    var bc = $('breadcrumb');
+    var parts = FILTER_CHAIN
+      .filter(function(item) { return _activeFilter[item.key]; })
+      .map(function(item) { return _activeFilter[item.key]; });
+    if (parts.length === 0) { bc.style.display = 'none'; return; }
+    bc.style.display = 'block';
+    bc.innerHTML = parts.join(' <span style="opacity:0.5">›</span> ');
   }
 
   function loadAllFilters() {
     _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
     reloadChainFrom(0);
+    updateBreadcrumb();
   }
 
   btnClear.addEventListener('click', function() {
@@ -863,6 +925,7 @@ require([
     FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
     applyFilters();
     reloadChainFrom(0);
+    updateBreadcrumb();
     // Zoom back to 48 states
     _view.goTo({
       extent: { xmin:-125, ymin:24.5, xmax:-66.5, ymax:49.5, spatialReference:{wkid:4326} }
@@ -895,17 +958,57 @@ require([
       url: SVI_URL,
       visible: false, opacity: 0.55,
       renderer: buildSviRenderer(),
+      outFields: ['RPL_THEMES','RPL_THEME1','RPL_THEME2','RPL_THEME3','RPL_THEME4',
+                  'E_TOTPOP','COUNTY','STATE','FIPS'],
       popupEnabled: true,
       popupTemplate: {
-        title: 'SVI — {LOCATION}',
-        content: [{ type:'fields', fieldInfos:[
-          {fieldName:'RPL_THEMES',  label:'Overall SVI Percentile'},
-          {fieldName:'RPL_THEME1',  label:'Socioeconomic'},
-          {fieldName:'RPL_THEME2',  label:'Household Characteristics'},
-          {fieldName:'RPL_THEME3',  label:'Racial & Ethnic Minority Status'},
-          {fieldName:'RPL_THEME4',  label:'Housing Type & Transportation'},
-          {fieldName:'E_TOTPOP',    label:'Total Population'}
-        ]}]
+        title: 'Social Vulnerability Index',
+        outFields: ['*'],
+        content: function(feature) {
+          var a = feature.graphic.attributes;
+          var rpl = parseFloat(a.RPL_THEMES);
+          var pct = isNaN(rpl) ? null : Math.round(rpl * 100);
+          var color = rpl >= 0.75 ? '#dc2626' : rpl >= 0.5 ? '#f97316' : rpl >= 0.25 ? '#f59e0b' : '#22c55e';
+          var label = rpl >= 0.75 ? 'Very High Vulnerability' : rpl >= 0.5 ? 'High Vulnerability' : rpl >= 0.25 ? 'Moderate Vulnerability' : 'Low Vulnerability';
+          function scoreBar(val, max, color) {
+            var pct = Math.min(100, Math.round((val / max) * 100));
+            return '<div style="background:#f0f0f0;border-radius:3px;height:6px;margin-top:3px">' +
+                   '<div style="background:' + color + ';width:' + pct + '%;height:100%;border-radius:3px"></div></div>';
+          }
+          function themeRow(lbl, val, c) {
+            var p = isNaN(parseFloat(val)) ? null : Math.round(parseFloat(val)*100);
+            if (p === null) return '';
+            return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px">' +
+                   '<span style="color:#666">' + lbl + '</span><span style="font-weight:700;color:' + c + '">' + p + 'th</span></div>' +
+                   scoreBar(p, 100, c) + '</div>';
+          }
+          var html = '<div class="pop-card">';
+          html += '<div class="pop-header" style="background:' + color + '">';
+          html += '<div class="pop-icon">📊</div><div>';
+          html += '<div class="pop-title">' + (a.COUNTY ? a.COUNTY + ', ' + a.STATE : 'Census Tract') + '</div>';
+          html += '<div class="pop-subtitle">' + label + '</div>';
+          html += '</div></div>';
+          html += '<div class="pop-body">';
+          if (pct !== null) {
+            html += '<div style="text-align:center;padding:12px 0 8px">';
+            html += '<div style="font-size:42px;font-weight:800;color:' + color + ';line-height:1">' + pct + '</div>';
+            html += '<div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.8px;margin-top:3px">Overall Percentile</div>';
+            html += scoreBar(pct, 100, color);
+            html += '</div>';
+            html += '<div class="pop-section-title">Theme Scores</div>';
+            html += themeRow('Socioeconomic Status',        a.RPL_THEME1, '#6366f1');
+            html += themeRow('Household & Disability',      a.RPL_THEME2, '#f97316');
+            html += themeRow('Racial & Ethnic Minority',    a.RPL_THEME3, '#10b981');
+            html += themeRow('Housing Type & Transport',    a.RPL_THEME4, '#06b6d4');
+          }
+          if (a.E_TOTPOP) {
+            html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:11px;color:#999">';
+            html += 'Population: <strong style="color:#333">' + parseInt(a.E_TOTPOP).toLocaleString() + '</strong>';
+            html += '&nbsp;&nbsp;FIPS: <span style="color:#ccc">' + (a.FIPS||'—') + '</span></div>';
+          }
+          html += '</div></div>';
+          return html;
+        }
       }
     });
 
@@ -914,16 +1017,51 @@ require([
       url: NRI_URL,
       visible: false, opacity: 0.55,
       renderer: buildNriRenderer(),
+      outFields: ['RISK_SCORE','RISK_RATNG','EAL_SCORE','SOVI_SCORE','CRF_VALUE','COUNTY','STATE'],
       popupEnabled: true,
       popupTemplate: {
-        title: 'NRI — {COUNTY}, {STATE}',
-        content: [{ type:'fields', fieldInfos:[
-          {fieldName:'RISK_SCORE',   label:'Composite Risk Score'},
-          {fieldName:'RISK_RATNG',   label:'Risk Rating'},
-          {fieldName:'EAL_SCORE',    label:'Expected Annual Loss'},
-          {fieldName:'SOVI_SCORE',   label:'Social Vulnerability Score'},
-          {fieldName:'RESL_SCORE',   label:'Community Resilience Score'}
-        ]}]
+        title: 'National Risk Index',
+        outFields: ['*'],
+        content: function(feature) {
+          var a = feature.graphic.attributes;
+          var score = parseFloat(a.RISK_SCORE);
+          var rating = (a.RISK_RATNG || '').trim();
+          var color = score >= 80 ? '#312e81' : score >= 60 ? '#4338ca' : score >= 40 ? '#6366f1' : score >= 20 ? '#93c5fd' : '#bfdbfe';
+          var textColor = score >= 40 ? '#fff' : '#1e3a5f';
+          function bar(val, max, c) {
+            var p = Math.min(100, Math.round((val / max) * 100));
+            return '<div style="background:#f0f0f0;border-radius:3px;height:6px;margin-top:3px">' +
+                   '<div style="background:' + c + ';width:' + p + '%;height:100%;border-radius:3px"></div></div>';
+          }
+          function metricRow(lbl, val, max, c) {
+            if (val === null || val === undefined || isNaN(parseFloat(val))) return '';
+            var n = parseFloat(val);
+            return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px">' +
+                   '<span style="color:#666">' + lbl + '</span>' +
+                   '<span style="font-weight:700;color:' + c + '">' + n.toFixed(1) + '</span></div>' +
+                   bar(n, max, c) + '</div>';
+          }
+          var html = '<div class="pop-card">';
+          html += '<div class="pop-header" style="background:' + color + '">';
+          html += '<div class="pop-icon">⚠️</div><div>';
+          html += '<div class="pop-title">' + (a.COUNTY ? a.COUNTY + ', ' + a.STATE : 'Census Tract') + '</div>';
+          html += '<div class="pop-subtitle">' + (rating || 'Risk Index Score') + '</div>';
+          html += '</div></div>';
+          html += '<div class="pop-body">';
+          if (!isNaN(score)) {
+            html += '<div style="text-align:center;padding:12px 0 8px">';
+            html += '<div style="font-size:42px;font-weight:800;color:' + (score >= 40 ? color : '#312e81') + ';line-height:1">' + score.toFixed(1) + '</div>';
+            html += '<div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.8px;margin-top:3px">Composite Risk Score (0–100)</div>';
+            html += bar(score, 100, color);
+            html += '</div>';
+          }
+          html += '<div class="pop-section-title">Components</div>';
+          html += metricRow('Expected Annual Loss',     a.EAL_SCORE,  100, '#dc2626');
+          html += metricRow('Social Vulnerability',     a.SOVI_SCORE, 100, '#f97316');
+          html += metricRow('Community Resilience',     a.CRF_VALUE,  100, '#22c55e');
+          html += '</div></div>';
+          return html;
+        }
       }
     });
 

@@ -1402,9 +1402,10 @@ function loadAllFilters() {
     // Init reference layers first (behind incident data)
     initReferenceLayers(map);
 
-    // Load FLARE layer
+    // Load FLARE layer — outFields:['*'] required so hitTest graphics have all attributes
     var fl = new FeatureLayer({
-      portalItem: { id: FLARE_ITEM, portal: { url: PORTAL } }
+      portalItem: { id: FLARE_ITEM, portal: { url: PORTAL } },
+      outFields: ['*']
     });
 
     fl.load().then(function() {

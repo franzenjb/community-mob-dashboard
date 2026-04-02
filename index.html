@@ -278,6 +278,27 @@
       </div>
 
       <div class="layer-group">
+        <span class="layer-group-label">ARC Boundaries</span>
+        <div>
+          <label class="layer-row">
+            <input type="checkbox" id="cb-div">
+            <div class="layer-color-swatch" style="background:#7B2D8E;border-radius:2px"></div>
+            <span>Divisions</span>
+          </label>
+          <label class="layer-row">
+            <input type="checkbox" id="cb-reg">
+            <div class="layer-color-swatch" style="background:#2D6DB4;border-radius:2px"></div>
+            <span>Regions</span>
+          </label>
+          <label class="layer-row">
+            <input type="checkbox" id="cb-chap">
+            <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
+            <span>Chapters</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="layer-group">
         <span class="layer-group-label">Reference Layers</span>
         <div id="reference-layers">
           <label class="layer-row" id="lyr-svi">
@@ -404,6 +425,17 @@ require([
   // Reference layer URLs (from tract-profile-2)
   var SVI_URL = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/8";
   var NRI_URL = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0";
+
+  // ARC Geography boundaries (from chapter-view)
+  var ARC_GEO_BASE = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Master_ARC_Geography_2022/FeatureServer";
+  var BOUNDARY_CONFIGS = [
+    { id:'div',  layerId:1, field:'Division', color:'#7B2D8E', width:2.0, minScale:0,       maxScale:0,       labelMinScale:25000000, labelMaxScale:3000000 },
+    { id:'reg',  layerId:2, field:'Region',   color:'#2D6DB4', width:1.5, minScale:0,       maxScale:0,       labelMinScale:8000000,  labelMaxScale:800000  },
+    { id:'chap', layerId:3, field:'Chapter',  color:'#C41E3A', width:1.2, minScale:0,       maxScale:0,       labelMinScale:3000000,  labelMaxScale:0       }
+  ];
+
+  // Categories to merge: 'Fire with RC Care' rolls into 'Fire with RC Notification'
+  var MERGE_INTO = { 'FIRE WITH RC CARE': 'FIRE WITH RC NOTIFICATION' };
 
   // Category colors: index 0..N for each unique master label value
   var CAT_COLORS = ["#E63950","#F59E0B","#10B981","#6366F1","#F97316","#06B6D4","#8B5CF6"];
@@ -652,26 +684,31 @@ require([
   // RENDERER
   // ═══════════════════════════════════════════════════════════
   function buildRenderer(fieldName, categories) {
-    var infos = categories.map(function(val, i) {
+    var merged = mergedCategories(categories);
+    // Assign colors per merged group; merged values share same color
+    merged.forEach(function(grp, i) {
       var c = CAT_COLORS[i % CAT_COLORS.length];
-      _catColorMap[val] = c;
+      grp.values.forEach(function(v) { _catColorMap[v] = c; });
+    });
+
+    var infos = categories.map(function(val) {
+      var c = _catColorMap[val] || '#888';
+      // Use the merged group label so merged items show under one legend entry
+      var mergedLabel = MERGE_INTO[val] ? MERGE_INTO[val] : val;
       return {
         value: val,
-        label: val,
+        label: mergedLabel,
         symbol: new SimpleMarkerSymbol({
           style: 'circle', color: c, size: 8,
           outline: { color: [255,255,255,200], width: 1.2 }
         })
       };
     });
+
     return new UniqueValueRenderer({
       field: fieldName,
-      uniqueValueInfos: infos,
-      defaultSymbol: new SimpleMarkerSymbol({
-        style: 'circle', color: [160,160,160,180], size: 7,
-        outline: { color: [255,255,255,180], width: 1 }
-      }),
-      defaultLabel: 'Other'
+      uniqueValueInfos: infos
+      // No defaultSymbol → removes "Other" from legend entirely
     });
   }
 
@@ -717,18 +754,30 @@ require([
   // ═══════════════════════════════════════════════════════════
   // KPI BAR
   // ═══════════════════════════════════════════════════════════
-  function buildKpiBar(categories) {
-    // Clear existing category tiles
-    kpiBar.querySelectorAll('.kpi-cat').forEach(function(el){ el.remove(); });
+  // Collapse categories per MERGE_INTO rules → [{label, values[]}]
+  function mergedCategories(rawCats) {
+    var groups = {};
+    var order  = [];
+    rawCats.forEach(function(cat) {
+      var target = MERGE_INTO[cat] || cat;
+      if (!groups[target]) { groups[target] = []; order.push(target); }
+      groups[target].push(cat);
+    });
+    return order.map(function(label) { return { label: label, values: groups[label] }; });
+  }
 
-    categories.forEach(function(cat, i) {
+  function buildKpiBar(categories) {
+    kpiBar.querySelectorAll('.kpi-cat').forEach(function(el){ el.remove(); });
+    var merged = mergedCategories(categories);
+
+    merged.forEach(function(grp, i) {
       var c = CAT_COLORS[i % CAT_COLORS.length];
       var tile = document.createElement('div');
       tile.className = 'kpi-tile kpi-cat';
       tile.style.setProperty('--kc', c);
       tile.innerHTML =
         '<div class="kpi-num dim" id="kpi-c' + i + '">—</div>' +
-        '<div class="kpi-lbl"><span class="kpi-dot" style="--kc:' + c + '"></span>' + cat + '</div>';
+        '<div class="kpi-lbl"><span class="kpi-dot" style="--kc:' + c + '"></span>' + grp.label + '</div>';
       kpiBar.appendChild(tile);
     });
 
@@ -760,13 +809,16 @@ require([
       filterCount.style.display = 'block';
     }).catch(function(){});
 
-    // Per category
-    _categories.forEach(function(cat, i) {
+    // Per merged category group
+    var merged = mergedCategories(_categories);
+    merged.forEach(function(grp, i) {
       var el = $('kpi-c' + i);
       if (!el || !_fieldMap.masterLabel) return;
-      var w = where === '1=1'
-        ? _fieldMap.masterLabel + "='" + cat.replace(/'/g,"''") + "'"
-        : where + " AND " + _fieldMap.masterLabel + "='" + cat.replace(/'/g,"''") + "'";
+      var vals = grp.values.map(function(v) {
+        return _fieldMap.masterLabel + "='" + v.replace(/'/g,"''") + "'";
+      }).join(' OR ');
+      var catClause = grp.values.length > 1 ? '(' + vals + ')' : vals;
+      var w = where === '1=1' ? catClause : where + ' AND ' + catClause;
       el.textContent = '—'; el.classList.add('dim');
       layer.queryFeatureCount({ where: w }).then(function(n) {
         el.textContent = n.toLocaleString(); el.classList.remove('dim');
@@ -1065,14 +1117,46 @@ require([
       }
     });
 
+    // Boundary layers go beneath incident data
+    BOUNDARY_CONFIGS.forEach(function(cfg) {
+      var lbl = {
+        type: 'text',
+        color: cfg.color,
+        haloColor: [255,255,255,220],
+        haloSize: 2,
+        font: { size: 10, weight: 'bold', family: 'Avenir Next' }
+      };
+      var bl = new FeatureLayer({
+        url: ARC_GEO_BASE + '/' + cfg.layerId,
+        visible: false,
+        opacity: 0.9,
+        renderer: new UniqueValueRenderer({
+          field: cfg.field,
+          defaultSymbol: new SimpleFillSymbol({
+            color: [0,0,0,0],
+            outline: { color: cfg.color, width: cfg.width, style: 'solid' }
+          })
+        }),
+        labelingInfo: [{
+          labelExpressionInfo: { expression: '$feature.' + cfg.field },
+          symbol: lbl,
+          minScale: cfg.labelMinScale,
+          maxScale: cfg.labelMaxScale,
+          labelPlacement: 'always-horizontal',
+          where: '1=1'
+        }],
+        labelsVisible: true,
+        popupEnabled: false
+      });
+      map.add(bl, 0); // insert below everything else
+      var cb = $(  'cb-' + cfg.id);
+      if (cb) cb.addEventListener('change', function() { bl.visible = cb.checked; });
+    });
+
     map.addMany([_sviLayer, _nriLayer]);
 
-    $('cb-svi').addEventListener('change', function() {
-      _sviLayer.visible = $('cb-svi').checked;
-    });
-    $('cb-nri').addEventListener('change', function() {
-      _nriLayer.visible = $('cb-nri').checked;
-    });
+    $('cb-svi').addEventListener('change', function() { _sviLayer.visible = $('cb-svi').checked; });
+    $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
   }
 
   // ═══════════════════════════════════════════════════════════

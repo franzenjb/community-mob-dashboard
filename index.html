@@ -358,10 +358,9 @@ require([
   var APP_ID     = "fF4HEEDkYiLrDxBN";
   var FLARE_ITEM = "3c225e4e9c344c7bb5424acf1adfb982";
 
-  // Reference layer item IDs (ArcGIS Living Atlas — requires login)
-  // Update these IDs if the layers change
-  var SVI_ITEM = "6b5b0e3c789b4eff8fc1a38ab33a7b4f";  // CDC SVI 2022 Tracts
-  var NRI_ITEM = "742ad2e1642f4e339630d6e43a4b890b";  // FEMA NRI Counties
+  // Reference layer URLs (from tract-profile-2)
+  var SVI_URL = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/8";
+  var NRI_URL = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0";
 
   // Category colors: index 0..N for each unique master label value
   var CAT_COLORS = ["#E63950","#F59E0B","#10B981","#6366F1","#F97316","#06B6D4","#8B5CF6"];
@@ -817,7 +816,7 @@ require([
   function initReferenceLayers(map) {
     // SVI
     _sviLayer = new FeatureLayer({
-      portalItem: { id: SVI_ITEM, portal: { url: 'https://www.arcgis.com' } },
+      url: SVI_URL,
       visible: false, opacity: 0.55,
       renderer: buildSviRenderer(),
       popupEnabled: true,
@@ -836,7 +835,7 @@ require([
 
     // NRI
     _nriLayer = new FeatureLayer({
-      portalItem: { id: NRI_ITEM, portal: { url: 'https://www.arcgis.com' } },
+      url: NRI_URL,
       visible: false, opacity: 0.55,
       renderer: buildNriRenderer(),
       popupEnabled: true,

@@ -556,17 +556,21 @@ require([
     chapter:     ["Chapter","CHAPTER","chapter_name","ChapterName","Chap_Name","CHAP_NAME"],
     county:      ["County","county","COUNTY","county_name","County_Name","COUNTY_NAME",
                   "cnty_name","cnty_nm","CNTY_NAME"],
-    city:        ["City","city","CITY","City_Name","city_name","CITY_NAME",
-                  "Muni_Name","muni_name","Municipality","municipality",
-                  "Place","place","IncidentCity","incident_city","inc_city"],
+    city:        ["IncidentCity","Incident_City","incident_city","inc_city",
+                  "City","city","CITY","City_Name","city_name","CITY_NAME",
+                  "Muni_Name","muni_name","Municipality","municipality","Place","place"],
     zip:         ["Zip","zip","ZIP","Zip_Code","zip_code","ZIP_CODE","ZipCode","PostalCode","postal_code"],
-    state:       ["State","state","STATE","State_Name","state_name","STATE_NAME"],
+    state:       ["State","state","STATE","State_Name","state_name","STATE_NAME","Inc_State","IncState"],
     masterLabel: ["Master_Label","MasterLabel","master_label","masterLabel",   // confirmed
                   "Label","label","Category","category","IncidentType","incident_type","Type","type"],
-    date:        ["Event_Date","event_date","EventDate",                        // confirmed
-                  "incident_date","IncidentDate","AlarmDate","alarm_date","ReportedDate"],
-    address:     ["IncidentAddress","incident_address","Address","address",
-                  "Full_Address","full_address","Location","location","Street","street"],
+    date:        ["Event_Date","event_date","EventDate","Alarm_Date","Alarm_Time","AlarmDateTime",  // confirmed
+                  "incident_date","IncidentDate","AlarmDate","alarm_date","ReportedDate","Inc_Date"],
+    address:     ["IncidentAddress","Incident_Address","incident_address","Inc_Address",
+                  "Address","address","Full_Address","full_address","Street","street",
+                  "Location","location","Street_Address","street_address"],
+    fireDept:    ["FD_Name","fd_name","FireDepartment","fire_department","FireDept","fire_dept",
+                  "DeptName","dept_name","Department","department","Agency","agency",
+                  "AgencyName","agency_name","FDName","Fire_Department_Name","dept"],
     casualties:  ["Casualties","casualties","Deaths","deaths","Fatalities","fatalities","Injuries","injuries"]
   };
 
@@ -673,9 +677,14 @@ require([
     // Format SVI as percentage
     if (/svi/i.test(fieldName) && typeof v === 'number' && v >= 0 && v <= 1)
       return Math.round(v * 100) + '%';
-    // Format dates
-    if (typeof v === 'number' && v > 1000000000000)
-      return new Date(v).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+    // Format date/time timestamps
+    if (typeof v === 'number' && v > 1000000000000) {
+      var d = new Date(v);
+      var datePart = d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+      var h = d.getHours(), m = d.getMinutes();
+      var timePart = (h || m) ? ' ' + (h % 12 || 12) + ':' + (m < 10 ? '0'+m : m) + (h < 12 ? ' AM' : ' PM') : '';
+      return datePart + timePart;
+    }
     return String(v);
   }
 
@@ -699,9 +708,10 @@ require([
     var city     = fmtVal(a, _fieldMap.city)     || '';
     var zip      = fmtVal(a, _fieldMap.zip)      || '';
     var addr     = fmtVal(a, _fieldMap.address)  || '';
-    var dt       = fmtVal(a, _fieldMap.date)     || '';
+    var dt       = fmtVal(a, _fieldMap.date)      || '';
+    var dept     = fmtVal(a, _fieldMap.fireDept)  || '';
     var cas      = fmtVal(a, _fieldMap.casualties) || '';
-    var svi      = fmtVal(a, SVI_LAYER_FIELD)    || '';
+    var svi      = fmtVal(a, SVI_LAYER_FIELD)     || '';
 
     var locLine = [city, county ? county + ' Co.' : '', zip].filter(Boolean).join(', ');
 
@@ -729,10 +739,11 @@ require([
 
     // Primary grid
     html += '<div class="pop-grid">';
-    if (dt)       html += popupField('Date', dt);
+    if (dept)     html += popupField('Fire Department', dept);
+    if (dt)       html += popupField('Date / Time', dt);
+    if (chapter)  html += popupField('Chapter', chapter);
     if (division) html += popupField('Division', division);
     if (region)   html += popupField('Region', region);
-    if (chapter)  html += popupField('Chapter', chapter);
     if (county)   html += popupField('County', county);
     if (city)     html += popupField('City', city);
     if (zip)      html += popupField('ZIP', zip);

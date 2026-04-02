@@ -332,7 +332,18 @@
 
       <div class="layer-group">
         <span class="layer-group-label">Incident Data</span>
-        <div id="incident-layers"><div class="skeleton"></div></div>
+        <div>
+          <label class="layer-row">
+            <input type="checkbox" id="cb-with" checked>
+            <div class="layer-color-swatch" style="background:#22c55e;border-radius:50%"></div>
+            <span>With RC Notification</span>
+          </label>
+          <label class="layer-row">
+            <input type="checkbox" id="cb-without" checked>
+            <div class="layer-color-swatch" style="background:#ef4444;border-radius:50%"></div>
+            <span>Without RC Notification</span>
+          </label>
+        </div>
       </div>
 
       <div class="layer-group">
@@ -373,6 +384,13 @@
             <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
               color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
           </label>
+          <label class="layer-row" id="lyr-stations">
+            <input type="checkbox" id="cb-stations">
+            <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
+            <span>Fire Stations (NERIS)</span>
+            <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+              color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+          </label>
         </div>
       </div>
     </div>
@@ -397,19 +415,8 @@
         <label class="filter-lbl" for="sel-county">County</label>
         <select id="sel-county" class="fsel" disabled><option>Loading...</option></select>
       </div>
-      <div class="filter-row">
-        <label class="filter-lbl" for="sel-city">City / Municipality</label>
-        <select id="sel-city" class="fsel" disabled><option>Loading...</option></select>
-      </div>
-      <div class="filter-row" id="zip-row" style="display:none">
-        <label class="filter-lbl" for="sel-zip">ZIP Code</label>
-        <select id="sel-zip" class="fsel" disabled><option>Loading...</option></select>
-      </div>
     </div>
 
-    <div class="filter-count" id="filter-count" style="display:none">
-      <strong id="count-num">—</strong> features
-    </div>
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
 
   </div>
@@ -480,15 +487,18 @@ require([
   var FLARE_ITEM = "3c225e4e9c344c7bb5424acf1adfb982";
 
   // Reference layer URLs (from tract-profile-2)
-  var SVI_URL = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/8";
-  var NRI_URL = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0";
+  var SVI_URL      = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/8";
+  var NRI_URL      = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0";
+  var STATIONS_URL = "/stations.csv";
+  var COLOR_WITH    = '#22c55e';  // green — Fire WITH RC Notification
+  var COLOR_WITHOUT = '#ef4444';  // red   — Fire WITHOUT RC Notification
 
   // ARC Geography boundaries (from chapter-view)
   var ARC_GEO_BASE = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Master_ARC_Geography_2022/FeatureServer";
   var BOUNDARY_CONFIGS = [
     { id:'div',  layerId:1, field:'Division', color:'#7B2D8E', width:2.0, minScale:0,       maxScale:0,       labelMinScale:25000000, labelMaxScale:3000000 },
     { id:'reg',  layerId:2, field:'Region',   color:'#2D6DB4', width:1.5, minScale:0,       maxScale:0,       labelMinScale:8000000,  labelMaxScale:800000  },
-    { id:'chap', layerId:3, field:'Chapter',  color:'#C41E3A', width:1.2, minScale:0,       maxScale:0,       labelMinScale:3000000,  labelMaxScale:0       }
+    { id:'chap', layerId:3, field:'Chapter',  color:'#C41E3A', width:1.2, minScale:0,       maxScale:0,       labelMinScale:15000000, labelMaxScale:0       }
   ];
 
   // Categories to merge: 'Fire with RC Care' rolls into 'Fire with RC Notification'
@@ -525,11 +535,14 @@ require([
   var _fieldMap        = {};
   var _categories      = [];
   var _catColorMap     = {};
-  var _activeFilter    = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
+  var _activeFilter    = { division:'', region:'', chapter:'', county:'' };
   var _sviLayer        = null;
   var _nriLayer        = null;
+  var _stationsLayer   = null;
   var _view            = null;
   var _kpiTotal        = 0;
+  var _showWith        = true;
+  var _showWithout     = true;
   var _boundaryLayers  = {};   // id → FeatureLayer (div, reg, chap)
 
   // Filter key → boundary layer id (auto-enable on select)
@@ -543,34 +556,24 @@ require([
   var loadingMsg     = $('loadingMsg');
   var kpiBar         = $('kpiBar');
   var kpiTotal       = $('kpi-total');
-  var incidentLayers = $('incident-layers');
-  var filterCount    = $('filter-count');
-  var countNum       = $('count-num');
   var btnClear       = $('btn-clear');
   var selDivision    = $('sel-division');
   var selRegion      = $('sel-region');
   var selChapter     = $('sel-chapter');
   var selCounty      = $('sel-county');
-  var selCity        = $('sel-city');
-  var selZip         = $('sel-zip');
-  var zipRow         = $('zip-row');
 
   // ── Cascade chain — order matters ───────────────────────────────────
   var FILTER_CHAIN = [
-    { key:'division', label:'Division',         sel:null },  // wired after DOM ready
-    { key:'region',   label:'Region',           sel:null },
-    { key:'chapter',  label:'Chapter',          sel:null },
-    { key:'county',   label:'County',           sel:null },
-    { key:'city',     label:'City',             sel:null },
-    { key:'zip',      label:'ZIP Code',         sel:null }
+    { key:'division', label:'Division', sel:null },
+    { key:'region',   label:'Region',   sel:null },
+    { key:'chapter',  label:'Chapter',  sel:null },
+    { key:'county',   label:'County',   sel:null }
   ];
   function wireChain() {
     FILTER_CHAIN[0].sel = selDivision;
     FILTER_CHAIN[1].sel = selRegion;
     FILTER_CHAIN[2].sel = selChapter;
     FILTER_CHAIN[3].sel = selCounty;
-    FILTER_CHAIN[4].sel = selCity;
-    FILTER_CHAIN[5].sel = selZip;
     FILTER_CHAIN.forEach(function(item, idx) {
       item.sel.addEventListener('change', function() { onChainChange(idx); });
     });
@@ -609,10 +612,14 @@ require([
   var SUPPRESS_FIELDS = [
     /^(latitude|longitude|lat|lon|long|x|y|x_coord|y_coord|shape_x|shape_y)$/i,
     /^(fips|county_fips|geoid|census_tract|tract_fips|objectid|oid|globalid|created_|last_edit|esri_)$/i,
-    /^svi\s*risk$/i   // shown in dedicated SVI section, not Additional Details
+    /^svi[_\s]*risk$/i,  // catches SVI_Risk, SVI Risk, SVIRisk — shown in dedicated section
+    /^svi$/i             // bare "SVI" field
   ];
-  function isSuppressed(fieldName) {
-    return SUPPRESS_FIELDS.some(function(re){ return re.test(fieldName); });
+  // Check both field name AND alias
+  function isSuppressed(f) {
+    var n = typeof f === 'string' ? f : f.name;
+    var a = (f && f.alias) ? f.alias : '';
+    return SUPPRESS_FIELDS.some(function(re){ return re.test(n) || re.test(a); });
   }
 
   function fmtVal(attrs, fieldName) {
@@ -660,9 +667,12 @@ require([
 
     var locLine = [city, county ? county + ' Co.' : '', zip].filter(Boolean).join(', ');
 
-    // Known field names — suppress these from "Additional Details"
+    // Known field names/aliases — suppress these from "Additional Details"
     var knownNames = Object.values(_fieldMap).filter(Boolean);
-    knownNames.push(SVI_LAYER_FIELD);
+    // Push all plausible SVI field name variants so none slip through
+    ['SVI Risk','SVI_Risk','svi_risk','SVIRisk','SVI risk','svi risk',
+     'RPL_THEMES','RPL_THEME1','RPL_THEME2','RPL_THEME3','RPL_THEME4',
+     SVI_LAYER_FIELD].forEach(function(n){ knownNames.push(n); });
 
     var html = '<div class="pop-card">';
 
@@ -705,10 +715,11 @@ require([
       html += '</div>';
     }
 
-    // Additional — skip coords, FIPS, known fields
+    // Additional — skip coords, FIPS, known fields (check both name AND alias)
     var extras = _flareLayer.fields.filter(function(f) {
       return f.type !== 'oid' && f.type !== 'geometry' && f.type !== 'blob' &&
-             knownNames.indexOf(f.name) === -1 && !isSuppressed(f.name);
+             knownNames.indexOf(f.name) === -1 && knownNames.indexOf(f.alias||'') === -1 &&
+             !isSuppressed(f);
     }).map(function(f) {
       var v = fmtVal(a, f.name);
       return v ? { label: f.alias || f.name, value: v } : null;
@@ -736,14 +747,19 @@ require([
     return '🔥';
   }
 
+  // Green = WITH RC Notification, Red = WITHOUT RC Notification
+  function catColor(label) {
+    return String(label).toUpperCase().indexOf('WITHOUT') !== -1 ? COLOR_WITHOUT : COLOR_WITH;
+  }
+
   // ═══════════════════════════════════════════════════════════
   // RENDERER
   // ═══════════════════════════════════════════════════════════
   function buildRenderer(fieldName, categories) {
     var merged = mergedCategories(categories);
-    // Assign colors per merged group; merged values share same color
-    merged.forEach(function(grp, i) {
-      var c = CAT_COLORS[i % CAT_COLORS.length];
+    // Assign green/red per merged group
+    merged.forEach(function(grp) {
+      var c = catColor(grp.label);
       grp.values.forEach(function(v) { _catColorMap[v] = c; });
     });
 
@@ -844,7 +860,7 @@ require([
     var merged = mergedCategories(categories);
 
     merged.forEach(function(grp, i) {
-      var c = CAT_COLORS[i % CAT_COLORS.length];
+      var c = catColor(grp.label);
       var tile = document.createElement('div');
       tile.className = 'kpi-tile kpi-cat';
       tile.style.setProperty('--kc', c);
@@ -875,36 +891,34 @@ require([
     var layer = _flareLayer;
     if (!layer) return;
 
-    // Total
-    layer.queryFeatureCount({ where: where }).then(function(n) {
-      _kpiTotal = n;
-      kpiTotal.textContent = n.toLocaleString();
+    // Query total first, then fire category queries so _kpiTotal is always available for %
+    layer.queryFeatureCount({ where: where }).then(function(total) {
+      _kpiTotal = total;
+      kpiTotal.textContent = total.toLocaleString();
       kpiTotal.classList.remove('dim');
-      countNum.textContent = n.toLocaleString();
-      filterCount.style.display = 'block';
-    }).catch(function(){});
 
-    // Per merged category group
-    var merged = mergedCategories(_categories);
-    merged.forEach(function(grp, i) {
-      var el = $('kpi-c' + i);
-      if (!el || !_fieldMap.masterLabel) return;
-      var vals = grp.values.map(function(v) {
-        return _fieldMap.masterLabel + "='" + v.replace(/'/g,"''") + "'";
-      }).join(' OR ');
-      var catClause = grp.values.length > 1 ? '(' + vals + ')' : vals;
-      var w = where === '1=1' ? catClause : where + ' AND ' + catClause;
-      var pctEl = $('kpi-pct' + i);
-      el.textContent = '—'; el.classList.add('dim');
-      if (pctEl) { pctEl.textContent = '—%'; pctEl.classList.add('dim'); }
-      layer.queryFeatureCount({ where: w }).then(function(n) {
-        el.textContent = n.toLocaleString(); el.classList.remove('dim');
-        if (pctEl) {
-          pctEl.textContent = _kpiTotal > 0 ? Math.round(n / _kpiTotal * 100) + '%' : '';
-          pctEl.classList.remove('dim');
-        }
-      }).catch(function(){});
-    });
+      // Per merged category group — fires after total is known
+      var merged = mergedCategories(_categories);
+      merged.forEach(function(grp, i) {
+        var el = $('kpi-c' + i);
+        if (!el || !_fieldMap.masterLabel) return;
+        var vals = grp.values.map(function(v) {
+          return _fieldMap.masterLabel + "='" + v.replace(/'/g,"''") + "'";
+        }).join(' OR ');
+        var catClause = grp.values.length > 1 ? '(' + vals + ')' : vals;
+        var w = where === '1=1' ? catClause : where + ' AND ' + catClause;
+        var pctEl = $('kpi-pct' + i);
+        el.textContent = '—'; el.classList.add('dim');
+        if (pctEl) { pctEl.textContent = ''; pctEl.classList.add('dim'); }
+        layer.queryFeatureCount({ where: w }).then(function(n) {
+          el.textContent = n.toLocaleString(); el.classList.remove('dim');
+          if (pctEl) {
+            pctEl.textContent = total > 0 ? Math.round(n / total * 100) + '%' : '';
+            pctEl.classList.remove('dim');
+          }
+        }).catch(function(){});
+      });
+    }).catch(function(){});
 
     // Divisions represented
     var elS = $('kpi-states');
@@ -937,6 +951,23 @@ require([
       var v = _activeFilter[item.key]; var f = _fieldMap[item.key];
       if (v && f) parts.push(f + "='" + v.replace(/'/g,"''") + "'");
     });
+    // Category visibility (With / Without RC toggles)
+    if (_fieldMap.masterLabel && _categories.length && (!_showWith || !_showWithout)) {
+      var allowed = [];
+      mergedCategories(_categories).forEach(function(grp) {
+        var isWithout = grp.label.toUpperCase().indexOf('WITHOUT') !== -1;
+        if ((isWithout && _showWithout) || (!isWithout && _showWith))
+          allowed = allowed.concat(grp.values);
+      });
+      if (allowed.length === 0) {
+        parts.push('1=0');
+      } else {
+        var catClause = allowed.map(function(v) {
+          return _fieldMap.masterLabel + "='" + v.replace(/'/g,"''") + "'";
+        }).join(' OR ');
+        parts.push('(' + catClause + ')');
+      }
+    }
     return parts.length ? parts.join(' AND ') : '1=1';
   }
 
@@ -1040,17 +1071,24 @@ require([
       if (cb) cb.checked = true;
     }
 
-    // Zoom only if a real value was selected (not "All")
-    if (item.sel.value) zoomToFiltered(changedIndex);
+    // Zoom to selection, or zoom out to parent level when clearing
+    if (item.sel.value) {
+      zoomToFiltered(changedIndex);
+    } else if (changedIndex > 0) {
+      zoomToFiltered(changedIndex - 1);
+    } else {
+      _view.goTo({ extent:{xmin:-125,ymin:24.5,xmax:-66.5,ymax:49.5,spatialReference:{wkid:4326}} },
+        { duration:750, easing:'ease-in-out' });
+    }
   }
 
 function loadAllFilters() {
-    _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
+    _activeFilter = { division:'', region:'', chapter:'', county:'' };
     reloadChainFrom(0);
   }
 
   btnClear.addEventListener('click', function() {
-    _activeFilter = { division:'', region:'', chapter:'', county:'', city:'', zip:'' };
+    _activeFilter = { division:'', region:'', chapter:'', county:'' };
     FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
     applyFilters();
     reloadChainFrom(0);
@@ -1063,18 +1101,15 @@ function loadAllFilters() {
   // ═══════════════════════════════════════════════════════════
   // LAYER TOGGLES (incident layers)
   // ═══════════════════════════════════════════════════════════
-  function buildIncidentToggles(layer) {
-    incidentLayers.innerHTML = '';
-    var row = document.createElement('label');
-    row.className = 'layer-row';
-    var cb = document.createElement('input'); cb.type='checkbox'; cb.checked=true;
-    cb.addEventListener('change', function(){ layer.visible = cb.checked; updateKpis(); });
-    var swatch = document.createElement('div');
-    swatch.className='layer-color-swatch';
-    swatch.style.background='#C41E3A'; swatch.style.borderRadius='50%';
-    var span = document.createElement('span'); span.textContent=layer.title||'FLARE Incidents';
-    row.appendChild(cb); row.appendChild(swatch); row.appendChild(span);
-    incidentLayers.appendChild(row);
+  function buildIncidentToggles() {
+    var cbWith    = $('cb-with');
+    var cbWithout = $('cb-without');
+    if (cbWith) cbWith.addEventListener('change', function() {
+      _showWith = cbWith.checked; applyFilters(); updateKpis();
+    });
+    if (cbWithout) cbWithout.addEventListener('change', function() {
+      _showWithout = cbWithout.checked; applyFilters(); updateKpis();
+    });
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1232,10 +1267,38 @@ function loadAllFilters() {
       if (cb) cb.addEventListener('change', function() { bl.visible = cb.checked; });
     });
 
-    map.addMany([_sviLayer, _nriLayer]);
+    // Fire Stations (NERIS CSV)
+    _stationsLayer = new CSVLayer({
+      url: STATIONS_URL,
+      latitudeField: 'y', longitudeField: 'x',
+      visible: false,
+      minScale: 3000000,
+      title: 'Fire Stations',
+      renderer: {
+        type: 'simple',
+        symbol: new SimpleMarkerSymbol({
+          style: 'square', color: [20, 20, 20, 220], size: 5,
+          outline: { color: [251, 191, 36, 220], width: 1 }
+        })
+      },
+      popupTemplate: {
+        title: '{station_name}',
+        content: function(evt) {
+          var f = evt.graphic.attributes;
+          var rows = '';
+          if (f.department_name) rows += '<tr><td style="padding:3px 8px 3px 0;color:#888">Department</td><td style="padding:3px 0">' + f.department_name + '</td></tr>';
+          if (f.city) rows += '<tr><td style="padding:3px 8px 3px 0;color:#888">Location</td><td style="padding:3px 0">' + f.city + (f.state ? ', ' + f.state : '') + (f.zip_code ? ' ' + f.zip_code : '') + '</td></tr>';
+          if (f.unit_count) rows += '<tr><td style="padding:3px 8px 3px 0;color:#888">Units</td><td style="padding:3px 0">' + f.unit_count + '</td></tr>';
+          return '<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:Avenir Next,sans-serif">' + rows + '</table>';
+        }
+      }
+    });
+
+    map.addMany([_sviLayer, _nriLayer, _stationsLayer]);
 
     $('cb-svi').addEventListener('change', function() { _sviLayer.visible = $('cb-svi').checked; });
     $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
+    $('cb-stations').addEventListener('change', function() { _stationsLayer.visible = $('cb-stations').checked; });
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1264,6 +1327,8 @@ function loadAllFilters() {
         var nriBadge = $('nri-zoom-badge');
         if (sviBadge) sviBadge.style.display = (_sviLayer && _sviLayer.visible && scale > 3000000) ? 'inline' : 'none';
         if (nriBadge) nriBadge.style.display = (_nriLayer && _nriLayer.visible && scale > 5000000) ? 'inline' : 'none';
+        var stBadge = $('stations-zoom-badge');
+        if (stBadge) stBadge.style.display = (_stationsLayer && _stationsLayer.visible && scale > 3000000) ? 'inline' : 'none';
       }
     );
     $('cb-svi').addEventListener('change', function() {
@@ -1321,7 +1386,7 @@ function loadAllFilters() {
       var labelField = _fieldMap.masterLabel;
       var afterRenderer = function() {
         map.add(fl);
-        buildIncidentToggles(fl);
+        buildIncidentToggles();
         loadAllFilters();
         updateKpis();
         _view.when(function() {

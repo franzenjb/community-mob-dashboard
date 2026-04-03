@@ -1180,19 +1180,10 @@ require([
     if (!_view) return;
     var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
 
-    // Use RC boundary polygon layer — clean geometry, right source for geography extent
-    // Pick most specific active boundary layer
-    var boundaryId = _activeFilter.chapter ? 'chap' : _activeFilter.region ? 'reg' : 'div';
-    var bl = _boundaryLayers[boundaryId];
-    if (!bl) return;
-
-    var parts = [];
-    if (_activeFilter.division) parts.push("Division='" + _activeFilter.division.replace(/'/g,"''") + "'");
-    if (_activeFilter.region)   parts.push("Region='"   + _activeFilter.region.replace(/'/g,"''")   + "'");
-    if (_activeFilter.chapter)  parts.push("Chapter='"  + _activeFilter.chapter.replace(/'/g,"''")  + "'");
-    if (!parts.length) return;
-
-    bl.queryExtent({ where: parts.join(' AND ') }).then(function(r) {
+    // Use FLARE incident layer — confirmed clean geometry, has RC fields
+    var rcW = buildRCWhere();
+    if (rcW === '1=1') return;
+    _flareLayer.queryExtent({ where: rcW }).then(function(r) {
       if (!r || !r.extent) return;
       _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
            .catch(function(){});

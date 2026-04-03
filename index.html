@@ -405,12 +405,12 @@
         <span class="layer-group-label">Incident Data</span>
         <div>
           <label class="layer-row">
-            <input type="checkbox" id="cb-with" checked>
+            <input type="checkbox" id="cb-with">
             <div class="layer-color-swatch" style="background:#22c55e;border-radius:50%"></div>
             <span>With RC Notification</span>
           </label>
           <label class="layer-row">
-            <input type="checkbox" id="cb-without" checked>
+            <input type="checkbox" id="cb-without">
             <div class="layer-color-swatch" style="background:#ef4444;border-radius:50%"></div>
             <span>Without RC Notification</span>
           </label>
@@ -652,8 +652,8 @@ require([
   var _deptsLayer      = null;   // FeatureLayer — 30,687 dept HQ points
   var _view            = null;
   var _kpiTotal        = 0;
-  var _showWith        = true;
-  var _showWithout     = true;
+  var _showWith        = false;
+  var _showWithout     = false;
   var _deptSearch      = '';
   var _boundaryLayers  = {};   // id → FeatureLayer (div, reg, chap)
 

@@ -372,9 +372,139 @@
   <div class="left-wrap" id="left-wrap">
   <div class="sidebar">
 
+    <!-- ═══════════════════════════════════════════
+         SECTION 1: FIRE DEPARTMENTS (primary)
+    ════════════════════════════════════════════ -->
     <div class="sb-section">
-      <div class="sb-title">Layers</div>
+      <div class="sb-title">Fire Departments</div>
 
+      <!-- Search -->
+      <div style="position:relative;margin-bottom:6px">
+        <input type="text" id="station-search" class="fsel" placeholder="Search departments…" autocomplete="off" style="padding-right:24px;font-size:12px">
+        <button id="station-search-clear" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:14px;line-height:1;padding:0;z-index:5">✕</button>
+        <div id="station-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1px solid #d8d8d8;border-top:none;border-radius:0 0 4px 4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+      </div>
+
+      <!-- Min filters -->
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <select id="dept-min-stations" style="flex:1;font-size:10px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;color:#555;background:#fafafa">
+          <option value="0">Any stations</option>
+          <option value="5">5+ stations</option>
+          <option value="10">10+ stations</option>
+          <option value="25">25+ stations</option>
+          <option value="50">50+ stations</option>
+        </select>
+        <select id="dept-min-ff" style="flex:1;font-size:10px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;color:#555;background:#fafafa">
+          <option value="0">Any FF</option>
+          <option value="50">50+ FF</option>
+          <option value="200">200+ FF</option>
+          <option value="500">500+ FF</option>
+          <option value="1000">1000+ FF</option>
+        </select>
+      </div>
+
+      <!-- Selected dept chips -->
+      <div id="dept-chips" style="display:none;margin-bottom:4px;flex-wrap:wrap;gap:4px"></div>
+
+      <!-- Fire layers toggles -->
+      <div style="border-top:1px solid #eee;padding-top:8px;margin-top:4px">
+        <label class="layer-row">
+          <input type="checkbox" id="cb-depts">
+          <div class="layer-color-swatch" style="background:#C41E3A;border-radius:50%"></div>
+          <span>Dept HQ points</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="cb-stations">
+          <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
+          <span>Fire Stations</span>
+          <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 2: RED CROSS GEOGRAPHY (secondary)
+    ════════════════════════════════════════════ -->
+    <div class="sb-section">
+      <div class="sb-title">Red Cross Geography</div>
+
+      <!-- RC filter chain -->
+      <div class="filter-row">
+        <label class="filter-lbl" for="sel-division">Division</label>
+        <select id="sel-division" class="fsel" disabled><option>Loading...</option></select>
+      </div>
+      <div class="filter-row">
+        <label class="filter-lbl" for="sel-region">Region</label>
+        <select id="sel-region" class="fsel" disabled><option>Loading...</option></select>
+      </div>
+      <div class="filter-row">
+        <label class="filter-lbl" for="sel-chapter">Chapter</label>
+        <select id="sel-chapter" class="fsel" disabled><option>Loading...</option></select>
+      </div>
+
+      <!-- Incident toggles — live here since they're RC data -->
+      <div style="border-top:1px solid #eee;padding-top:8px;margin-top:8px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#888;margin-bottom:6px">Incident Data</div>
+        <label class="layer-row">
+          <input type="checkbox" id="cb-with">
+          <div class="layer-color-swatch" style="background:#22c55e;border-radius:50%"></div>
+          <span>With RC Notification</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="cb-without">
+          <div class="layer-color-swatch" style="background:#ef4444;border-radius:50%"></div>
+          <span>Without RC Notification</span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 3: MAP LAYERS (power users, collapsed)
+    ════════════════════════════════════════════ -->
+    <div class="sb-section">
+      <button id="acc-layers-btn" style="width:100%;background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#666;margin-bottom:4px">
+        <span>Map Layers</span>
+        <span id="acc-layers-arrow" style="font-size:13px;color:#999">▸</span>
+      </button>
+      <div id="acc-layers-body" style="display:none">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:4px 0 3px">ARC Boundaries</div>
+        <label class="layer-row">
+          <input type="checkbox" id="cb-div" checked>
+          <div class="layer-color-swatch" style="background:#7B2D8E;border-radius:2px"></div>
+          <span>Divisions</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="cb-reg">
+          <div class="layer-color-swatch" style="background:#2D6DB4;border-radius:2px"></div>
+          <span>Regions</span>
+        </label>
+        <label class="layer-row">
+          <input type="checkbox" id="cb-chap">
+          <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
+          <span>Chapters</span>
+        </label>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
+        <label class="layer-row" id="lyr-svi">
+          <input type="checkbox" id="cb-svi">
+          <div class="layer-color-swatch" style="background:linear-gradient(135deg,#fde68a,#f97316,#dc2626)"></div>
+          <span>SVI</span>
+          <span id="svi-zoom-badge" style="display:none;margin-left:auto;font-size:9px;color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+        </label>
+        <label class="layer-row" id="lyr-nri">
+          <input type="checkbox" id="cb-nri">
+          <div class="layer-color-swatch" style="background:linear-gradient(135deg,#bfdbfe,#6366f1,#312e81)"></div>
+          <span>NRI</span>
+          <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- dummy section placeholder (old content removed) -->
+    <div class="sb-section" style="display:none">
       <!-- Incident Data -->
       <div class="layer-group">
         <span class="layer-group-label">Incident Data</span>
@@ -398,139 +528,6 @@
         <label class="layer-row" id="lyr-depts">
           <input type="checkbox" id="cb-depts">
           <div class="layer-color-swatch" style="background:#C41E3A;border-radius:50%"></div>
-          <span>Fire Dept HQ</span>
-        </label>
-        <label class="layer-row" id="lyr-stations">
-          <input type="checkbox" id="cb-stations">
-          <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
-          <span>Fire Stations</span>
-          <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-            color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-        </label>
-      </div>
-
-      <!-- Fire Department Search -->
-      <div class="layer-group" style="padding-bottom:6px">
-        <span class="layer-group-label">Fire Departments</span>
-        <div style="padding:4px 0 6px 0">
-          <!-- Min filter toggles -->
-          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-            <span style="font-size:10px;color:#999;font-weight:600;white-space:nowrap">Min:</span>
-            <div style="display:flex;gap:4px;flex:1">
-              <select id="dept-min-stations" style="flex:1;font-size:10px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;color:#555;background:#fafafa">
-                <option value="0">Any stations</option>
-                <option value="5">5+ stations</option>
-                <option value="10">10+ stations</option>
-                <option value="25">25+ stations</option>
-                <option value="50">50+ stations</option>
-              </select>
-              <select id="dept-min-ff" style="flex:1;font-size:10px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;color:#555;background:#fafafa">
-                <option value="0">Any FF</option>
-                <option value="50">50+ FF</option>
-                <option value="200">200+ FF</option>
-                <option value="500">500+ FF</option>
-                <option value="1000">1000+ FF</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div style="padding:0 0 2px 0">
-          <div style="position:relative">
-            <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off" style="padding-right:24px">
-            <button id="station-search-clear" style="
-              display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);
-              background:none;border:none;cursor:pointer;color:#aaa;font-size:14px;
-              line-height:1;padding:0;z-index:5
-            ">✕</button>
-            <div id="station-dropdown" style="
-              display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
-              background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
-              max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.1);
-            "></div>
-          </div>
-          <div id="dept-chips" style="display:none;margin-top:5px;flex-wrap:wrap;gap:4px"></div>
-        </div>
-      </div>
-
-      <!-- Map Layers — collapsed accordion -->
-      <div class="layer-group" style="padding-bottom:4px">
-        <button id="acc-layers-btn" style="
-          width:100%;background:none;border:none;padding:0;cursor:pointer;
-          display:flex;align-items:center;justify-content:space-between;
-          font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-          color:#666;margin-bottom:4px;
-        ">
-          <span>Map Layers</span>
-          <span id="acc-layers-arrow" style="font-size:13px;color:#999">▸</span>
-        </button>
-        <div id="acc-layers-body" style="display:none">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:6px 0 3px">ARC Boundaries</div>
-          <label class="layer-row">
-            <input type="checkbox" id="cb-div" checked>
-            <div class="layer-color-swatch" style="background:#7B2D8E;border-radius:2px"></div>
-            <span>Divisions</span>
-          </label>
-          <label class="layer-row">
-            <input type="checkbox" id="cb-reg">
-            <div class="layer-color-swatch" style="background:#2D6DB4;border-radius:2px"></div>
-            <span>Regions</span>
-          </label>
-          <label class="layer-row">
-            <input type="checkbox" id="cb-chap">
-            <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
-            <span>Chapters</span>
-          </label>
-          <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
-          <div id="reference-layers">
-            <label class="layer-row" id="lyr-svi">
-              <input type="checkbox" id="cb-svi">
-              <div class="layer-color-swatch" style="background: linear-gradient(135deg,#fde68a,#f97316,#dc2626)"></div>
-              <span>Social Vulnerability Index (SVI)</span>
-              <span id="svi-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-                color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-            </label>
-            <label class="layer-row" id="lyr-nri">
-              <input type="checkbox" id="cb-nri">
-              <div class="layer-color-swatch" style="background: linear-gradient(135deg,#bfdbfe,#6366f1,#312e81)"></div>
-              <span>National Risk Index (NRI)</span>
-              <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-                color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="sb-section">
-      <hr class="divider">
-      <!-- Red Cross Geography accordion -->
-      <button id="acc-rcgeo-btn" style="
-        width:100%;background:none;border:none;padding:0 0 8px;cursor:pointer;
-        display:flex;align-items:center;justify-content:space-between;
-      ">
-        <span class="sb-title" style="margin-bottom:0">Red Cross Geography</span>
-        <span id="acc-rcgeo-arrow" style="font-size:13px;color:#999;margin-left:6px">▾</span>
-      </button>
-      <div id="acc-rcgeo-body" style="display:">
-        <div class="filter-row">
-          <label class="filter-lbl" for="sel-division">Division</label>
-          <select id="sel-division" class="fsel" disabled><option>Loading...</option></select>
-        </div>
-        <div class="filter-row">
-          <label class="filter-lbl" for="sel-region">Region</label>
-          <select id="sel-region" class="fsel" disabled><option>Loading...</option></select>
-        </div>
-        <div class="filter-row">
-          <label class="filter-lbl" for="sel-chapter">Chapter</label>
-          <select id="sel-chapter" class="fsel" disabled><option>Loading...</option></select>
-        </div>
-        <div class="filter-row" id="dept-filter-row" style="display:none">
-          <label class="filter-lbl" for="dept-search">Fire Department</label>
-          <input type="text" id="dept-search" class="fsel" placeholder="Search departments…">
-        </div>
-      </div>
-    </div>
-
     <button class="btn-clear" id="btn-clear">Clear All Filters</button>
 
   </div>
@@ -1379,6 +1376,165 @@ function loadAllFilters() {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // STATION POPUP — three designs A / B / C
+  // ═══════════════════════════════════════════════════════════
+
+  function setPopStyle(s) {
+    _popupStyle = s;
+    ['A','B','C'].forEach(function(x) {
+      var btn = document.getElementById('pop-style-' + x.toLowerCase());
+      if (!btn) return;
+      btn.style.background = (x === s) ? '#C41E3A' : '#fff';
+      btn.style.color      = (x === s) ? '#fff'    : '#555';
+    });
+    if (_lastStAttrs) renderStationPopup(_lastStAttrs, _lastDeptAttrs);
+  }
+
+  function initPopStyleButtons() {
+    ['a','b','c'].forEach(function(x) {
+      var btn = document.getElementById('pop-style-' + x);
+      if (btn) btn.addEventListener('click', function() { setPopStyle(x.toUpperCase()); });
+    });
+  }
+
+  /* ── Design A: clean white, RC in bordered box ── */
+  function stPopupA(a, d) {
+    var addr = [a.address, a.city ? (a.city + (a.state ? ', ' + stFull(a.state) : '')) : stFull(a.state), a.zip_code].filter(Boolean).join('<br>');
+    var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif;color:#111">';
+    // header
+    h += '<div style="background:#fff;border-bottom:3px solid #C41E3A;padding:14px 16px 10px">';
+    h += '<div style="font-size:15px;font-weight:700;color:#111;line-height:1.3">' + (a.station_name || 'Fire Station') + '</div>';
+    h += '<div style="font-size:12px;color:#555;margin-top:2px">' + (a.department_name || '') + '</div>';
+    h += '</div>';
+    // address + basic info
+    h += '<div style="padding:12px 16px;border-bottom:1px solid #eee">';
+    if (addr) h += '<div style="font-size:12px;color:#333;line-height:1.6;margin-bottom:8px">' + addr + '</div>';
+    var badges = [];
+    if (a.station_type) badges.push(a.station_type);
+    if (a.unit_count) badges.push(a.unit_count + ' unit' + (a.unit_count == 1 ? '' : 's'));
+    if (badges.length) h += '<div style="font-size:11px;color:#666">' + badges.join(' &nbsp;·&nbsp; ') + '</div>';
+    h += '</div>';
+    // RC section
+    h += deptDetail(d, 'A');
+    // IDs
+    h += '<div style="padding:10px 16px;background:#f9f9f9;border-top:1px solid #eee">';
+    if (a.neris_id) h += '<div style="font-size:11px;color:#555">Station NERIS ID: <span style="font-family:monospace;color:#333">' + a.neris_id + '</span></div>';
+    if (a.department_neris_id) h += '<div style="font-size:11px;color:#555;margin-top:2px">Department NERIS ID: <span style="font-family:monospace;color:#333">' + a.department_neris_id + '</span></div>';
+    h += '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  /* ── Design B: red header, white body ── */
+  function stPopupB(a, d) {
+    var addr = [a.address, a.city ? (a.city + (a.state ? ', ' + stFull(a.state) : '')) : stFull(a.state), a.zip_code].filter(Boolean).join('  ');
+    var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif">';
+    // red header
+    h += '<div style="background:#C41E3A;padding:14px 16px 12px">';
+    h += '<div style="font-size:15px;font-weight:700;color:#fff;line-height:1.3">' + (a.station_name || 'Fire Station') + '</div>';
+    h += '<div style="font-size:12px;color:rgba(255,255,255,0.85);margin-top:3px">' + (a.department_name || '') + '</div>';
+    if (a.unit_count) h += '<div style="display:inline-block;margin-top:6px;padding:2px 8px;background:rgba(255,255,255,0.2);border-radius:10px;font-size:11px;color:#fff">' + a.unit_count + ' unit' + (a.unit_count==1?'':'s') + '</div>';
+    h += '</div>';
+    // address row
+    h += '<div style="padding:10px 16px;border-bottom:1px solid #eee;font-size:12px;color:#333">';
+    if (addr) h += addr;
+    if (a.station_type) h += '<div style="margin-top:4px;font-size:11px;color:#888">' + a.station_type + '</div>';
+    h += '</div>';
+    // RC section
+    h += deptDetail(d, 'B');
+    // IDs
+    h += '<div style="padding:8px 16px 12px;border-top:1px solid #eee">';
+    if (a.neris_id) h += '<div style="font-size:11px;color:#777">Station NERIS ID: <span style="font-family:monospace">' + a.neris_id + '</span></div>';
+    if (a.department_neris_id) h += '<div style="font-size:11px;color:#777;margin-top:2px">Department NERIS ID: <span style="font-family:monospace">' + a.department_neris_id + '</span></div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  /* ── Design C: dark slate header, table layout ── */
+  function stPopupC(a, d) {
+    var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif">';
+    // dark header
+    h += '<div style="background:#1e293b;padding:14px 16px 12px">';
+    h += '<div style="display:flex;align-items:flex-start;justify-content:space-between">';
+    h += '<div style="font-size:15px;font-weight:700;color:#fff;line-height:1.3;flex:1">' + (a.station_name || 'Fire Station') + '</div>';
+    if (a.unit_count) h += '<div style="flex-shrink:0;margin-left:8px;padding:2px 8px;background:#C41E3A;border-radius:10px;font-size:11px;color:#fff;white-space:nowrap">' + a.unit_count + (a.unit_count==1?' unit':' units') + '</div>';
+    h += '</div>';
+    h += '<div style="font-size:12px;color:#94a3b8;margin-top:4px">' + (a.department_name || '') + '</div>';
+    h += '</div>';
+    // table
+    h += '<div style="padding:12px 16px">';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    function tr(label, val) {
+      if (!val) return '';
+      return '<tr><td style="padding:4px 0;color:#888;width:45%;vertical-align:top">' + label + '</td><td style="padding:4px 0;color:#111;font-weight:500">' + val + '</td></tr>';
+    }
+    var fullAddr = [a.address].filter(Boolean).join('');
+    var cityStateZip = [a.city, a.state ? (stFull(a.state) + (a.zip_code ? ' ' + a.zip_code : '')) : a.zip_code].filter(Boolean).join(', ');
+    h += tr('Address', fullAddr);
+    h += tr('', cityStateZip);
+    h += tr('Type', a.station_type);
+    h += '</table>';
+    h += '</div>';
+    // RC section
+    h += deptDetail(d, 'C');
+    // IDs
+    h += '<div style="padding:8px 16px 12px;background:#f8fafc;border-top:1px solid #e2e8f0">';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    if (a.neris_id) h += '<tr><td style="color:#64748b;padding:2px 0;width:55%">Station NERIS ID</td><td style="font-family:monospace;color:#334155">' + a.neris_id + '</td></tr>';
+    if (a.department_neris_id) h += '<tr><td style="color:#64748b;padding:2px 0">Department NERIS ID</td><td style="font-family:monospace;color:#334155">' + a.department_neris_id + '</td></tr>';
+    h += '</table></div></div>';
+    return h;
+  }
+
+  function deptDetail(d, style) {
+    // RC hierarchy — shared across all three styles
+    var chapter  = (d && d.Chapter)  || '';
+    var region   = (d && d.Region)   || '';
+    var division = (d && d.Division) || '';
+    if (!chapter && !region && !division) {
+      return '<div style="padding:10px 16px;font-size:11px;color:#aaa;font-style:italic">Red Cross chapter info loading…</div>';
+    }
+    var bg   = style === 'C' ? '#f8fafc'  : style === 'B' ? '#f5f5f5' : '#fafafa';
+    var bdr  = style === 'C' ? '#e2e8f0'  : '#e0e0e0';
+    var h = '<div style="padding:10px 16px;background:' + bg + ';border-top:1px solid ' + bdr + ';border-bottom:1px solid ' + bdr + '">';
+    h += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#888;margin-bottom:6px">Red Cross</div>';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    function rcRow(label, val) {
+      if (!val) return '';
+      return '<tr><td style="padding:3px 0;color:#777;width:45%;vertical-align:top">' + label + '</td><td style="padding:3px 0;color:#111;font-weight:500">' + val + '</td></tr>';
+    }
+    h += rcRow('Chapter', chapter);
+    h += rcRow('Region', region);
+    h += rcRow('Division', division);
+    h += '</table></div>';
+    return h;
+  }
+
+  function renderStationPopup(a, d) {
+    var html;
+    if (_popupStyle === 'B')      html = stPopupB(a, d);
+    else if (_popupStyle === 'C') html = stPopupC(a, d);
+    else                           html = stPopupA(a, d);
+    $('sr-body').innerHTML = html;
+  }
+
+  function fetchDeptForStation(deptNerisId) {
+    if (!deptNerisId || !_stationsLayer) return;
+    var url = (typeof DEPARTMENTS_URL !== 'undefined' ? DEPARTMENTS_URL : '') +
+      '/query?where=neris_id%3D%27' + encodeURIComponent(deptNerisId) +
+      '%27&outFields=*&f=json';
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.features && data.features.length > 0) {
+          _lastDeptAttrs = data.features[0].attributes;
+          renderStationPopup(_lastStAttrs, _lastDeptAttrs);
+        }
+      })
+      .catch(function() {});
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // REFERENCE LAYERS (SVI / NRI)
   // ═══════════════════════════════════════════════════════════
   function initReferenceLayers(map) {
@@ -2010,14 +2166,6 @@ function loadAllFilters() {
     });
 
     // ── Red Cross Geography accordion ────────────────────────────
-    $('acc-rcgeo-btn').addEventListener('click', function() {
-      var body  = $('acc-rcgeo-body');
-      var arrow = $('acc-rcgeo-arrow');
-      var open  = body.style.display !== 'none';
-      body.style.display = open ? 'none' : '';
-      arrow.textContent  = open ? '▸' : '▾';
-    });
-
     // ── Dept search button in station popup ──────────────────────
     document.addEventListener('click', function(e) {
       if (e.target && e.target.classList.contains('dept-search-btn')) {
@@ -2075,6 +2223,9 @@ function loadAllFilters() {
       expandIconClass:'esri-icon-legend',
       content: new Legend({ view:_view })
     }), 'top-right');
+
+    // Wire A/B/C popup style buttons
+    initPopStyleButtons();
 
     // Init reference layers first (behind incident data)
     initReferenceLayers(map);

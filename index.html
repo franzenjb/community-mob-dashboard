@@ -1549,23 +1549,55 @@ function loadAllFilters() {
       }
     }
 
-    function showDeptDropdown(matches) {
+    var _lastMatches = [];   // keep current match list for re-render after toggle
+
+    function showDeptDropdown(matches, keepOpen) {
+      if (matches) _lastMatches = matches;
       dd.innerHTML = '';
-      if (!matches.length) {
-        dd.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:#aaa">No results</div>';
+
+      // ── Done button at top ──────────────────────────────────
+      var doneRow = document.createElement('div');
+      doneRow.style.cssText = 'padding:6px 10px;border-bottom:2px solid #e4e4e4;display:flex;' +
+        'align-items:center;justify-content:space-between;background:#fafafa;position:sticky;top:0;z-index:1';
+      var doneLabel = _selectedDepts.length
+        ? '<span style="font-size:11px;color:#C41E3A;font-weight:600">' + _selectedDepts.length + ' selected</span>'
+        : '<span style="font-size:11px;color:#aaa">Select departments</span>';
+      doneRow.innerHTML = doneLabel +
+        '<button style="padding:3px 10px;background:#C41E3A;color:#fff;border:none;border-radius:4px;' +
+        'font-size:11px;font-weight:600;cursor:pointer;line-height:1.4">Done</button>';
+      doneRow.querySelector('button').addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        dd.style.display = 'none';
+        inp.value = '';
+        inp.blur();
+      });
+      dd.appendChild(doneRow);
+
+      if (!_lastMatches.length) {
+        var none = document.createElement('div');
+        none.style.cssText = 'padding:8px 10px;font-size:12px;color:#aaa';
+        none.textContent = 'No results';
+        dd.appendChild(none);
         dd.style.display = '';
         return;
       }
-      matches.slice(0, 50).forEach(function(d) {
+
+      _lastMatches.slice(0, 50).forEach(function(d) {
         var already = _selectedDepts.indexOf(d.department_name) !== -1;
         var item = document.createElement('div');
         item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;' +
-          'line-height:1.35' + (already ? ';background:#fdf5f6' : '');
-        item.innerHTML =
-          '<div style="font-weight:600;color:' + (already ? '#C41E3A' : '#222') + '">' +
-          (already ? '✓ ' : '') + d.department_name + '</div>' +
+          'line-height:1.35;display:flex;align-items:flex-start;gap:8px' +
+          (already ? ';background:#fdf5f6' : '');
+        // Checkbox-style indicator
+        var chk = '<span style="flex-shrink:0;margin-top:1px;width:14px;height:14px;border-radius:3px;border:1.5px solid ' +
+          (already ? '#C41E3A' : '#ccc') + ';background:' + (already ? '#C41E3A' : '#fff') +
+          ';display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff">' +
+          (already ? '✓' : '') + '</span>';
+        item.innerHTML = chk +
+          '<div><div style="font-weight:600;color:' + (already ? '#C41E3A' : '#222') + '">' +
+          d.department_name + '</div>' +
           '<div style="font-size:11px;color:#888">' + d.state + ' &nbsp;·&nbsp; ' +
-          d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div>';
+          d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div></div>';
         item.addEventListener('mousedown', function(e) {
           e.preventDefault();
           if (!already) {
@@ -1573,13 +1605,12 @@ function loadAllFilters() {
           } else {
             _selectedDepts = _selectedDepts.filter(function(n){ return n !== d.department_name; });
           }
-          inp.value = '';
-          dd.style.display = 'none';
           renderChips();
           applyDeptFilter();
+          showDeptDropdown(null, true);   // re-render list in place, keep open
         });
-        item.addEventListener('mouseover', function(){ if (!already) item.style.background='#fdf5f6'; });
-        item.addEventListener('mouseout',  function(){ if (!already) item.style.background=''; });
+        item.addEventListener('mouseover', function(){ item.style.background='#fdf5f6'; });
+        item.addEventListener('mouseout',  function(){ item.style.background = already ? '#fdf5f6' : ''; });
         dd.appendChild(item);
       });
       dd.style.display = '';
@@ -1588,7 +1619,7 @@ function loadAllFilters() {
     inp.addEventListener('input', function() {
       clearTimeout(_stationTimer);
       var q = inp.value.trim().toLowerCase();
-      if (!q) { dd.style.display='none'; return; }
+      if (!q) { dd.style.display='none'; _lastMatches=[]; return; }
       _stationTimer = setTimeout(function() {
         if (!_deptList.length) buildDeptList();
         var matches = _deptList.filter(function(d) {
@@ -1598,8 +1629,15 @@ function loadAllFilters() {
       }, 150);
     });
 
-    inp.addEventListener('blur',  function(){ setTimeout(function(){ dd.style.display='none'; }, 150); });
-    inp.addEventListener('focus', function(){ if (dd.children.length) dd.style.display=''; });
+    // Only close on blur if clicking outside the dropdown entirely
+    inp.addEventListener('blur', function() {
+      setTimeout(function() {
+        if (!dd.matches(':hover') && document.activeElement !== inp) {
+          dd.style.display = 'none';
+        }
+      }, 200);
+    });
+    inp.addEventListener('focus', function(){ if (_lastMatches.length) showDeptDropdown(null, true); });
   }
 
   // ═══════════════════════════════════════════════════════════

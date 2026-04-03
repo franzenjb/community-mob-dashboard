@@ -501,24 +501,31 @@
 
     <div class="sb-section">
       <hr class="divider">
-      <div class="sb-title">Filters</div>
-
-      <div class="filter-row">
-        <label class="filter-lbl" for="sel-division">Division</label>
-        <select id="sel-division" class="fsel" disabled><option>Loading...</option></select>
-      </div>
-      <div class="filter-row">
-        <label class="filter-lbl" for="sel-region">Region</label>
-        <select id="sel-region" class="fsel" disabled><option>Loading...</option></select>
-      </div>
-      <div class="filter-row">
-        <label class="filter-lbl" for="sel-chapter">Chapter</label>
-        <select id="sel-chapter" class="fsel" disabled><option>Loading...</option></select>
-      </div>
-
-      <div class="filter-row" id="dept-filter-row" style="display:none">
-        <label class="filter-lbl" for="dept-search">Fire Department</label>
-        <input type="text" id="dept-search" class="fsel" placeholder="Search departments…">
+      <!-- Red Cross Geography accordion -->
+      <button id="acc-rcgeo-btn" style="
+        width:100%;background:none;border:none;padding:0 0 8px;cursor:pointer;
+        display:flex;align-items:center;justify-content:space-between;
+      ">
+        <span class="sb-title" style="margin-bottom:0">Red Cross Geography</span>
+        <span id="acc-rcgeo-arrow" style="font-size:13px;color:#999;margin-left:6px">▸</span>
+      </button>
+      <div id="acc-rcgeo-body" style="display:none">
+        <div class="filter-row">
+          <label class="filter-lbl" for="sel-division">Division</label>
+          <select id="sel-division" class="fsel" disabled><option>Loading...</option></select>
+        </div>
+        <div class="filter-row">
+          <label class="filter-lbl" for="sel-region">Region</label>
+          <select id="sel-region" class="fsel" disabled><option>Loading...</option></select>
+        </div>
+        <div class="filter-row">
+          <label class="filter-lbl" for="sel-chapter">Chapter</label>
+          <select id="sel-chapter" class="fsel" disabled><option>Loading...</option></select>
+        </div>
+        <div class="filter-row" id="dept-filter-row" style="display:none">
+          <label class="filter-lbl" for="dept-search">Fire Department</label>
+          <input type="text" id="dept-search" class="fsel" placeholder="Search departments…">
+        </div>
       </div>
     </div>
 
@@ -1899,6 +1906,15 @@ function loadAllFilters() {
           $('sidebar-right').classList.add('open');
         }
       });
+    });
+
+    // ── Red Cross Geography accordion ────────────────────────────
+    $('acc-rcgeo-btn').addEventListener('click', function() {
+      var body  = $('acc-rcgeo-body');
+      var arrow = $('acc-rcgeo-arrow');
+      var open  = body.style.display !== 'none';
+      body.style.display = open ? 'none' : '';
+      arrow.textContent  = open ? '▸' : '▾';
     });
 
     // ── Map Layers accordion ─────────────────────────────────────

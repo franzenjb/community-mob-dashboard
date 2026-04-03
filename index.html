@@ -1140,10 +1140,14 @@ require([
 
   // Build where using only filters UP TO (not including) chainIndex
   function buildWhereUpTo(chainIndex) {
+    // RC-only clause up to chainIndex — does NOT include incident toggles or dept search
+    var keys = ['division','region','chapter'];
+    var fieldNames = { division:'Division', region:'Region', chapter:'Chapter' };
     var parts = [];
-    for (var i = 0; i < chainIndex; i++) {
-      var item = FILTER_CHAIN[i];
-      var v = _activeFilter[item.key]; var f = _fieldMap[item.key];
+    for (var i = 0; i < chainIndex && i < keys.length; i++) {
+      var k = keys[i];
+      var v = _activeFilter[k];
+      var f = _fieldMap[k] || fieldNames[k];
       if (v && f) parts.push(f + "='" + v.replace(/'/g,"''") + "'");
     }
     return parts.length ? parts.join(' AND ') : '1=1';
@@ -1176,12 +1180,18 @@ require([
   }
 
   function zoomToFiltered(chainIndex) {
-    if (!_flareLayer || !_view) return;
-    var w = buildWhere();
-    _flareLayer.queryExtent({ where: w }).then(function(r) {
+    if (!_view) return;
+    var rcW = buildRCWhere();
+    var expand = chainIndex <= 1 ? 1.05 : chainIndex <= 2 ? 1.04 : 1.08;
+
+    // Prefer FLARE layer if incidents are visible; fall back to NERIS stations
+    var incidentsVisible = (_showWith || _showWithout) && _flareLayer;
+    var zoomLayer = incidentsVisible ? _flareLayer : (_stationsLayer || _flareLayer);
+    var zoomWhere = incidentsVisible ? buildWhere() : rcW;
+
+    if (!zoomLayer) return;
+    zoomLayer.queryExtent({ where: zoomWhere }).then(function(r) {
       if (!r || !r.extent) return;
-      // Tighter expand at deeper levels; Division/Region stay loose
-      var expand = chainIndex <= 1 ? 1.05 : chainIndex <= 2 ? 1.04 : 1.08;
       _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
            .catch(function(){});
     }).catch(function(){});

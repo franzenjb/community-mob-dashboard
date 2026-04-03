@@ -1176,18 +1176,7 @@ require([
     var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
     var rcW = buildRCWhere();
     if (rcW === '1=1') return;
-    // Use a geometry envelope to clip to US bounds — avoids bad geometry records
-    var usEnvelope = {
-      type: 'extent',
-      xmin: -125, ymin: 24, xmax: -66, ymax: 50,
-      spatialReference: { wkid: 4326 }
-    };
-    _stationsLayer.queryExtent({
-      where: rcW,
-      geometry: usEnvelope,
-      geometryType: 'esriGeometryEnvelope',
-      spatialRelationship: 'intersects'
-    }).then(function(r) {
+    _stationsLayer.queryExtent({ where: rcW }).then(function(r) {
       if (!r || !r.extent) return;
       _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
            .catch(function(){});

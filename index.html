@@ -2082,7 +2082,7 @@ function loadAllFilters() {
         if (sviBadge) sviBadge.style.display = (_sviLayer && _sviLayer.visible && scale > 3000000) ? 'inline' : 'none';
         if (nriBadge) nriBadge.style.display = (_nriLayer && _nriLayer.visible && scale > 5000000) ? 'inline' : 'none';
         var stBadge = $('stations-zoom-badge');
-        if (stBadge) stBadge.style.display = (_stationsLayer && _stationsLayer.visible && scale > 3000000) ? 'inline' : 'none';
+        if (stBadge) stBadge.style.display = 'none';
       }
     );
     $('cb-svi').addEventListener('change', function() {

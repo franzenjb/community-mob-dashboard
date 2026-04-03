@@ -509,9 +509,9 @@
         display:flex;align-items:center;justify-content:space-between;
       ">
         <span class="sb-title" style="margin-bottom:0">Red Cross Geography</span>
-        <span id="acc-rcgeo-arrow" style="font-size:13px;color:#999;margin-left:6px">▸</span>
+        <span id="acc-rcgeo-arrow" style="font-size:13px;color:#999;margin-left:6px">▾</span>
       </button>
-      <div id="acc-rcgeo-body" style="display:none">
+      <div id="acc-rcgeo-body" style="display:">
         <div class="filter-row">
           <label class="filter-lbl" for="sel-division">Division</label>
           <select id="sel-division" class="fsel" disabled><option>Loading...</option></select>
@@ -550,7 +550,12 @@
   <div class="sidebar-right" id="sidebar-right">
     <div class="sr-header">
       <span class="sr-title">Feature Info</span>
-      <button class="sr-close" id="close-right">&#215;</button>
+      <div style="display:flex;align-items:center;gap:3px">
+        <button id="pop-style-a" style="width:22px;height:22px;border:1.5px solid #C41E3A;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:#C41E3A;color:#fff">A</button>
+        <button id="pop-style-b" style="width:22px;height:22px;border:1.5px solid #ddd;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:#fff;color:#555">B</button>
+        <button id="pop-style-c" style="width:22px;height:22px;border:1.5px solid #ddd;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:#fff;color:#555">C</button>
+        <button class="sr-close" id="close-right">&#215;</button>
+      </div>
     </div>
     <div class="sr-body" id="sr-body"></div>
   </div>
@@ -684,6 +689,15 @@ require([
 
   // Filter key → boundary layer id (auto-enable on select)
   var FILTER_TO_BOUNDARY = { division:'div', region:'reg', chapter:'chap' };
+
+  // Popup style picker
+  var _popupStyle   = 'A';
+  var _lastStAttrs  = null;   // last station click attributes (for re-render on style switch)
+  var _lastDeptAttrs = null;  // async dept data loaded for last station
+
+  // US state abbreviation → full name
+  var STATE_NAMES = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'Washington D.C.',PR:'Puerto Rico'};
+  function stFull(code){ return STATE_NAMES[String(code||'').trim().toUpperCase()] || code || ''; }
 
   // ═══════════════════════════════════════════════════════════
   // DOM
@@ -1274,6 +1288,13 @@ require([
 
     applyFilters();
     reloadChainFrom(changedIndex + 1);
+
+    // Auto-show fire stations when any RC filter is selected
+    if (item.sel.value && _stationsLayer) {
+      _stationsLayer.visible = true;
+      var cbSt = $('cb-stations');
+      if (cbSt) cbSt.checked = true;
+    }
 
     // Auto-enable the matching boundary layer when a filter is selected
     var bid = FILTER_TO_BOUNDARY[item.key];
@@ -1979,113 +2000,11 @@ function loadAllFilters() {
           return r.graphic && r.graphic.layer === _stationsLayer;
         });
         if (stHit) {
-          var a = stHit.graphic.attributes;
-
-          // ── Dark header: name, dept, unit count ──
-          var h = '<div style="background:#111;color:#fff;padding:12px 14px;margin-bottom:0">';
-          h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
-          h += '<div style="flex:1;min-width:0">';
-          h += '<div style="font-size:15px;font-weight:800;line-height:1.2;word-break:break-word">' + (a.station_name || 'Fire Station') + '</div>';
-          if (a.department_name) h += '<div style="font-size:10px;color:#f87171;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:3px">' + a.department_name + '</div>';
-          h += '</div>';
-          if (a.unit_count) {
-            h += '<div style="text-align:right;flex-shrink:0">';
-            h += '<div style="font-size:20px;font-weight:900;color:#f97316;line-height:1">' + a.unit_count + '</div>';
-            h += '<div style="font-size:8px;color:#666;text-transform:uppercase;letter-spacing:.05em">units</div>';
-            h += '</div>';
-          }
-          h += '</div>';
-          // Address inline under header
-          var addrLine = [a.address_line_1, a.city ? a.city + (a.state ? ', '+a.state : '') + (a.zip_code ? ' '+a.zip_code : '') : ''].filter(Boolean).join('  ·  ');
-          if (addrLine) h += '<div style="font-size:11px;color:#888;margin-top:6px">' + addrLine + '</div>';
-          h += '</div>';
-
-          // ── RC block: left-accent, tight ──
-          if (a.Chapter || a.Region || a.Division) {
-            h += '<div style="border-left:3px solid #C41E3A;margin:6px 14px 0;padding:5px 10px;background:#fdf5f6;border-radius:0 4px 4px 0">';
-            h += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#C41E3A;margin-bottom:3px">American Red Cross</div>';
-            function rcr(lbl,val){ return val ? '<div style="font-size:11px;padding:1px 0;line-height:1.4"><span style="color:#aaa">'+lbl+': </span><span style="font-weight:600">'+val+'</span></div>' : ''; }
-            h += rcr('Chapter', a.Chapter) + rcr('Region', a.Region) + rcr('Division', a.Division);
-            h += '</div>';
-          }
-
-          // ── Dept detail placeholder (async) ──
-          h += '<div id="sr-dept-detail" style="padding:0 14px">';
-          if (a.department_neris_id) h += '<div style="font-size:10px;color:#ccc;text-align:center;padding:10px 0">Loading dept…</div>';
-          h += '</div>';
-
-          // ── NERIS IDs ──
-          if (a.neris_id || a.department_neris_id) {
-            h += '<div style="padding:6px 14px 10px;font-size:9px;color:#ccc;font-family:monospace">';
-            if (a.neris_id) h += a.neris_id;
-            if (a.neris_id && a.department_neris_id) h += '  ·  ';
-            if (a.department_neris_id) h += a.department_neris_id;
-            h += '</div>';
-          }
-
-          $('sr-body').innerHTML = h;
+          _lastStAttrs  = stHit.graphic.attributes;
+          _lastDeptAttrs = null;
+          renderStationPopup(_lastStAttrs, null);
           $('sidebar-right').classList.add('open');
-
-          // Async: query Departments layer by department_neris_id
-          if (a.department_neris_id) {
-            var deptLayer2 = new FeatureLayer({ url: DEPARTMENTS_URL });
-            deptLayer2.queryFeatures({
-              where: "neris_id = '" + a.department_neris_id.replace(/'/g,"''") + "'",
-              outFields: ['name','department_type','entity_type','station_count','unit_count',
-                          'firefighters_career_ft','firefighters_career_pt',
-                          'firefighters_volunteer','ems_only_career_ft','ems_only_volunteer',
-                          'fire_services','ems_services','investigation_services',
-                          'assessment_caas_accredited','assessment_cpse_accredited',
-                          'shift_count','shift_duration','website'],
-              returnGeometry: false, num: 1
-            }).then(function(result) {
-              var el = $('sr-dept-detail');
-              if (!el) return;
-              if (!result.features.length) { el.innerHTML = ''; return; }
-              var d = result.features[0].attributes;
-              var totalFF = (d.firefighters_career_ft||0) + (d.firefighters_career_pt||0) + (d.firefighters_volunteer||0);
-
-              var dh = '<details style="border-top:1px solid #f0f0f0;margin-top:8px">';
-              // Summary line: type badges + key stats inline
-              dh += '<summary style="cursor:pointer;list-style:none;padding:8px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
-              dh += '<span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888">Department</span>';
-              if (d.department_type) dh += '<span style="font-size:9px;padding:1px 6px;background:#fdf5f6;border:1px solid #f5c6c6;border-radius:8px;color:#C41E3A;font-weight:600">' + d.department_type + '</span>';
-              if (d.entity_type) dh += '<span style="font-size:9px;padding:1px 6px;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;color:#4338ca">' + d.entity_type + '</span>';
-              var statBits = [];
-              if (d.station_count) statBits.push('<span style="color:#C41E3A;font-weight:700">' + d.station_count + '</span> sta');
-              if (d.unit_count) statBits.push('<span style="color:#f97316;font-weight:700">' + d.unit_count + '</span> app');
-              if (totalFF) statBits.push('<span style="color:#16a34a;font-weight:700">' + totalFF + '</span> ff');
-              if (statBits.length) dh += '<span style="font-size:11px;color:#666;margin-left:auto">' + statBits.join(' &nbsp;·&nbsp; ') + '</span>';
-              dh += '</summary>';
-
-              // Expanded content
-              dh += '<div style="padding-bottom:8px">';
-              if (d.population_protected) dh += '<div style="font-size:11px;color:#555;margin-bottom:6px">Protects <strong>' + parseInt(d.population_protected).toLocaleString() + '</strong> residents</div>';
-
-              // Services
-              dh += '<details style="margin-bottom:4px"><summary style="cursor:pointer;font-size:10px;font-weight:600;color:#888;list-style:none;padding:4px 0;border-top:1px solid #f5f5f5">Services &amp; Capabilities</summary>';
-              dh += '<div style="padding-top:6px">';
-              dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#aaa;margin-bottom:3px">Fire</div>' + serviceGrid(d.fire_services, ALL_FIRE_SERVICES, '#C41E3A', '#fdf5f6', '#f5c6c6');
-              dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#aaa;margin:5px 0 3px">EMS</div>' + serviceGrid(d.ems_services, ALL_EMS_SERVICES, '#2D6DB4', '#eff6ff', '#bfdbfe');
-              dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#aaa;margin:5px 0 3px">Investigation</div>' + serviceGrid(d.investigation_services, ALL_INV_SERVICES, '#16a34a', '#f0fdf4', '#bbf7d0');
-              dh += '</div></details>';
-
-              // Shifts + accreditation
-              var meta = [];
-              if (d.shift_count) meta.push(d.shift_count + ' shift' + (d.shift_count!==1?'s':'') + (d.shift_duration?', '+d.shift_duration+'hr':''));
-              if (d.assessment_caas_accredited) meta.push('CAAS');
-              if (d.assessment_cpse_accredited) meta.push('CPSE');
-              if (meta.length) dh += '<div style="font-size:11px;color:#888;margin-top:4px">' + meta.join('  ·  ') + '</div>';
-
-              // Website
-              if (d.website) dh += '<div style="margin-top:6px"><a href="' + d.website + '" target="_blank" style="font-size:11px;color:#C41E3A;text-decoration:none">' + d.website.replace(/https?:\/\//,'').replace(/\/$/,'') + ' →</a></div>';
-
-              dh += '</div></details>';
-              el.innerHTML = dh;
-            }).catch(function() {
-              var el = $('sr-dept-detail'); if (el) el.innerHTML = '';
-            });
-          }
+          fetchDeptForStation(_lastStAttrs.department_neris_id);
         }
       });
     });

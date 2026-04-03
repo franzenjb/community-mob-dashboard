@@ -1273,7 +1273,7 @@ function loadAllFilters() {
   btnClear.addEventListener('click', function() {
     _activeFilter = { division:'', region:'', chapter:'', county:'' };
     FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
-    _deptSearch = ''; var deptInp = $('dept-search'); if (deptInp) deptInp.value = '';
+    _deptSearch = ''; var deptInp = $('station-search'); if (deptInp) { deptInp.value = ''; deptInp.dispatchEvent(new Event('input')); }
     applyFilters();
     reloadChainFrom(0);
     // Zoom back to 48 states
@@ -1293,38 +1293,6 @@ function loadAllFilters() {
     });
     if (cbWithout) cbWithout.addEventListener('change', function() {
       _showWithout = cbWithout.checked; applyFilters(); updateKpis();
-    });
-  }
-
-  // Fire department text search — only shown when field is mapped in data
-  function buildDeptSearch() {
-    var row = $('dept-filter-row');
-    var inp = $('dept-search');
-    if (!row || !inp || !_fieldMap.fireDept) return;
-    row.style.display = '';   // reveal the row
-    var timer;
-    var clearBtn = $('station-search-clear');
-
-    function updateClearBtn() {
-      clearBtn.style.display = inp.value.trim() ? '' : 'none';
-    }
-
-    clearBtn.addEventListener('click', function() {
-      inp.value = '';
-      dd.style.display = 'none';
-      _lastMatches = [];
-      clearBtn.style.display = 'none';
-      inp.focus();
-    });
-
-    inp.addEventListener('input', function() {
-      updateClearBtn();
-      clearTimeout(timer);
-      timer = setTimeout(function() {
-        _deptSearch = inp.value.trim();
-        applyFilters();
-        updateKpis();
-      }, 400);
     });
   }
 
@@ -1618,6 +1586,23 @@ function loadAllFilters() {
     var dd         = $('station-dropdown');
     var chipsEl    = $('dept-chips');
     var _selectedDepts = [];   // array of department_name strings
+
+    // Wire clear button
+    var clearBtn = $('station-search-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        inp.value = '';
+        clearBtn.style.display = 'none';
+        dd.style.display = 'none';
+        _selectedDepts = [];
+        renderChips();
+        applyDeptFilter();
+      });
+    }
+    // Show/hide clear button as user types
+    inp.addEventListener('input', function() {
+      if (clearBtn) clearBtn.style.display = inp.value.trim() ? '' : 'none';
+    }, true);
 
     // Department search — live query per keystroke against Departments FeatureLayer
     var _deptList = [];   // cached results for last query
@@ -2136,7 +2121,6 @@ function loadAllFilters() {
       var afterRenderer = function() {
         map.add(fl);
         buildIncidentToggles();
-        buildDeptSearch();
         loadAllFilters();
         updateKpis();
         // Prime the incident layer: briefly enable both, then restore to off

@@ -1534,8 +1534,10 @@ function loadAllFilters() {
       });
       map.add(bl, 0); // insert below everything else
       _boundaryLayers[cfg.id] = bl;
-      var cb = $('cb-' + cfg.id);
-      if (cb) cb.addEventListener('change', function() { bl.visible = cb.checked; });
+      (function(layer, checkboxId) {
+        var cb = $(checkboxId);
+        if (cb) cb.addEventListener('change', function() { layer.visible = cb.checked; });
+      })(bl, 'cb-' + cfg.id);
     });
 
     // Fire Stations — AGOL Feature Layer (replaces CSVLayer)

@@ -237,6 +237,19 @@ require([
   Home, ScaleBar, Expand, Legend, PopupTemplate, reactiveUtils
 ) {
 
+  // ── MOBILE SCOPE BRIDGE — exposes closure vars to external scripts ──
+  window._flare = function(key) {
+    var scope = {
+      view:          function(){ return _view; },
+      stationsLayer: function(){ return _stationsLayer; },
+      deptsLayer:    function(){ return _deptsLayer; },
+      sviLayer:      function(){ return _sviLayer; },
+      nriLayer:      function(){ return _nriLayer; },
+      boundaryLayers:function(){ return _boundaryLayers; }
+    };
+    return scope[key] ? scope[key]() : null;
+  };
+
   // ═══════════════════════════════════════════════════════════
   // CONFIG
   // ═══════════════════════════════════════════════════════════
@@ -1887,7 +1900,7 @@ var LAYERS = [
     { main:'W/O RC',    sub:'show',   action: function(){ toggleCb('cb-without'); }, toggle:'cb-without' },
     { main:'SHOW ALL',  sub:'both on',action: function(){ setCb('cb-with',true);  setCb('cb-without',true);  } },
     { main:'HIDE ALL',  sub:'clear',  action: function(){ setCb('cb-with',false); setCb('cb-without',false); } },
-    { main:'ZOOM US',   sub:'conus',  action: function(){ if(_view) _view.goTo({extent:CONUS},{duration:750}); } },
+    { main:'ZOOM US',   sub:'conus',  action: function(){ var v=window._flare('view'); if(v) v.goTo({extent:CONUS},{duration:750}); } },
     { main:'INFO',      sub:'on tap', action: function(){ toast('Tap any incident on the map'); } },
   ],
   // 1 — BOUNDARIES (cyan)
@@ -1897,7 +1910,7 @@ var LAYERS = [
     { main:'CHAPTER',   sub:'overlay', action: function(){ toggleCb('cb-chap'); }, toggle:'cb-chap' },
     { main:'ALL ON',    sub:'bounds',  action: function(){ setCb('cb-div',true);  setCb('cb-reg',true);  setCb('cb-chap',true);  } },
     { main:'HIDE',      sub:'bounds',  action: function(){ setCb('cb-div',false); setCb('cb-reg',false); setCb('cb-chap',false); } },
-    { main:'ZOOM US',   sub:'conus',   action: function(){ if(_view) _view.goTo({extent:CONUS},{duration:750}); } },
+    { main:'ZOOM US',   sub:'conus',   action: function(){ var v=window._flare('view'); if(v) v.goTo({extent:CONUS},{duration:750}); } },
   ],
   // 2 — FIELD ASSETS (orange)
   [
@@ -1905,7 +1918,7 @@ var LAYERS = [
     { main:'DEPTS',     sub:'30k pts', action: function(){ toggleCb('cb-depts');    }, toggle:'cb-depts'    },
     { main:'BOTH ON',   sub:'field',   action: function(){ setCb('cb-stations',true); setCb('cb-depts',true); } },
     { main:'HIDE',      sub:'field',   action: function(){ setCb('cb-stations',false); setCb('cb-depts',false); } },
-    { main:'ZOOM US',   sub:'conus',   action: function(){ if(_view) _view.goTo({extent:CONUS},{duration:750}); } },
+    { main:'ZOOM US',   sub:'conus',   action: function(){ var v=window._flare('view'); if(v) v.goTo({extent:CONUS},{duration:750}); } },
     { main:'COUNT',     sub:'visible', action: function(){ countVisible(); } },
   ],
   // 3 — RISK DATA (purple)
@@ -1955,16 +1968,16 @@ function toast(msg, ms) {
 
 function countVisible() {
   var count = 0;
-  if (_stationsLayer && _stationsLayer.visible) count++;
-  if (_deptsLayer    && _deptsLayer.visible)    count++;
+  var sl = window._flare('stationsLayer'); if (sl && sl.visible) count++;
+  var dl = window._flare('deptsLayer');    if (dl && dl.visible) count++;
   toast(count + ' field layer(s) visible');
 }
 
 function locateMe() {
   if (!navigator.geolocation) { toast('Geolocation not available'); return; }
   navigator.geolocation.getCurrentPosition(function(pos) {
-    if (!_view) return;
-    _view.goTo({ center:[pos.coords.longitude, pos.coords.latitude], zoom:10 }, {duration:800});
+    var v = window._flare('view'); if (!v) return;
+    v.goTo({ center:[pos.coords.longitude, pos.coords.latitude], zoom:10 }, {duration:800});
   }, function(){ toast('Location unavailable'); });
 }
 
@@ -1972,7 +1985,8 @@ var _basemaps = ['dark-gray-vector','streets-navigation-vector','satellite','oce
 var _basemapIdx = 0;
 function cycleBasemap() {
   _basemapIdx = (_basemapIdx + 1) % _basemaps.length;
-  if (_view && _view.map) _view.map.basemap = _basemaps[_basemapIdx];
+  var v = window._flare('view');
+  if (v && v.map) v.map.basemap = _basemaps[_basemapIdx];
   toast(_basemaps[_basemapIdx]);
 }
 
@@ -1985,7 +1999,7 @@ function copyUrl() {
 
 function mobileClearAll() {
   ['cb-with','cb-without','cb-stations','cb-depts','cb-svi','cb-nri'].forEach(function(id){ setCb(id,false); });
-  if (_view) _view.goTo({extent:CONUS},{duration:750});
+  var v = window._flare('view'); if (v) v.goTo({extent:CONUS},{duration:750});
   buildGrids();
   toast('Reset');
 }

@@ -1477,25 +1477,33 @@ function loadAllFilters() {
     }
 
     function zoomToSelectedDepts() {
-      if (!_stationDataReady || !_selectedDepts.length) return;
+      if (!_stationDataReady || !_selectedDepts.length || !_view) return;
       var pts = _stationData.filter(function(s){
         return _selectedDepts.indexOf(s.department_name) !== -1 && !isNaN(s.x) && !isNaN(s.y);
       });
       if (!pts.length) return;
-      if (pts.length === 1) {
-        _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
+      var doZoom = function() {
+        if (pts.length === 1) {
+          _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
+        } else {
+          var xs = pts.map(function(s){ return s.x; });
+          var ys = pts.map(function(s){ return s.y; });
+          var xpad = Math.max(0.02, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.05);
+          var ypad = Math.max(0.02, (Math.max.apply(null,ys) - Math.min.apply(null,ys)) * 0.05);
+          _view.goTo({
+            extent: {
+              xmin: Math.min.apply(null,xs) - xpad, xmax: Math.max.apply(null,xs) + xpad,
+              ymin: Math.min.apply(null,ys) - ypad, ymax: Math.max.apply(null,ys) + ypad,
+              spatialReference: { wkid:4326 }
+            }
+          }, { duration:700 });
+        }
+      };
+      // If view is ready go now, else wait for it
+      if (_view.ready) {
+        doZoom();
       } else {
-        var xs = pts.map(function(s){ return s.x; });
-        var ys = pts.map(function(s){ return s.y; });
-        var xpad = Math.max(0.02, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.05);
-        var ypad = Math.max(0.02, (Math.max.apply(null,ys) - Math.min.apply(null,ys)) * 0.05);
-        _view.goTo({
-          extent: {
-            xmin: Math.min.apply(null,xs) - xpad, xmax: Math.max.apply(null,xs) + xpad,
-            ymin: Math.min.apply(null,ys) - ypad, ymax: Math.max.apply(null,ys) + ypad,
-            spatialReference: { wkid:4326 }
-          }
-        }, { duration:700 });
+        _view.when(doZoom);
       }
     }
 

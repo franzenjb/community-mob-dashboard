@@ -437,7 +437,29 @@
       <!-- Fire Department Search -->
       <div class="layer-group" style="padding-bottom:6px">
         <span class="layer-group-label">Fire Departments</span>
-        <div style="padding:4px 0 2px 0">
+        <div style="padding:4px 0 6px 0">
+          <!-- Min filter toggles -->
+          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+            <span style="font-size:10px;color:#999;font-weight:600;white-space:nowrap">Min:</span>
+            <div style="display:flex;gap:4px;flex:1">
+              <select id="dept-min-stations" style="flex:1;font-size:10px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;color:#555;background:#fafafa">
+                <option value="0">Any stations</option>
+                <option value="5">5+ stations</option>
+                <option value="10">10+ stations</option>
+                <option value="25">25+ stations</option>
+                <option value="50">50+ stations</option>
+              </select>
+              <select id="dept-min-ff" style="flex:1;font-size:10px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;color:#555;background:#fafafa">
+                <option value="0">Any FF</option>
+                <option value="50">50+ FF</option>
+                <option value="200">200+ FF</option>
+                <option value="500">500+ FF</option>
+                <option value="1000">1000+ FF</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="padding:0 0 2px 0">
           <div style="position:relative">
             <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
             <div id="station-dropdown" style="
@@ -1487,6 +1509,8 @@ function loadAllFilters() {
 
     // Department typeahead — multi-select with chips
     var _stationTimer;
+    var _deptMinStations = 0;
+    var _deptMinFF       = 0;
     var inp        = $('station-search');
     var dd         = $('station-dropdown');
     var chipsEl    = $('dept-chips');
@@ -1502,16 +1526,18 @@ function loadAllFilters() {
         : "1=1";
       _deptQueryLayer.queryFeatures({
         where: where,
-        outFields: ['name','state','station_count'],
+        outFields: ['name','state','station_count','firefighters_career_ft','firefighters_career_pt','firefighters_volunteer'],
         returnGeometry: false,
         num: 50,
         orderByFields: ['name ASC']
       }).then(function(result) {
         _deptList = result.features.map(function(f) {
+          var a = f.attributes;
           return {
-            department_name: f.attributes.name || '',
-            state: f.attributes.state || '',
-            count: f.attributes.station_count || 0
+            department_name: a.name || '',
+            state: a.state || '',
+            count: a.station_count || 0,
+            ff: (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0)
           };
         }).filter(function(d){ return d.department_name; });
         _stationDataReady = true;
@@ -1703,13 +1729,44 @@ function loadAllFilters() {
       dd.style.display = '';
     }
 
+    function getFilteredDeptList() {
+      return _deptList.filter(function(d) {
+        return d.count >= _deptMinStations && d.ff >= _deptMinFF;
+      });
+    }
+
+    $('dept-min-stations').addEventListener('change', function() {
+      _deptMinStations = parseInt(this.value) || 0;
+      var q = inp.value.trim().toLowerCase();
+      if (q && _deptList.length) {
+        var filtered = getFilteredDeptList().filter(function(d){
+          return d.department_name.toLowerCase().indexOf(q) !== -1;
+        });
+        showDeptDropdown(filtered);
+      }
+    });
+
+    $('dept-min-ff').addEventListener('change', function() {
+      _deptMinFF = parseInt(this.value) || 0;
+      var q = inp.value.trim().toLowerCase();
+      if (q && _deptList.length) {
+        var filtered = getFilteredDeptList().filter(function(d){
+          return d.department_name.toLowerCase().indexOf(q) !== -1;
+        });
+        showDeptDropdown(filtered);
+      }
+    });
+
     inp.addEventListener('input', function() {
       clearTimeout(_stationTimer);
       var q = inp.value.trim().toLowerCase();
       if (!q) { dd.style.display='none'; _lastMatches=[]; return; }
       _stationTimer = setTimeout(function() {
         buildDeptList(function() {
-          showDeptDropdown(_deptList);
+          var filtered = getFilteredDeptList().filter(function(d){
+            return d.department_name.toLowerCase().indexOf(q) !== -1;
+          });
+          showDeptDropdown(filtered);
         }, q);
       }, 300);
     });

@@ -961,6 +961,13 @@ require([
     tChaps.style.setProperty('--kc','#64748b');
     tChaps.innerHTML = '<div class="kpi-num dim" id="kpi-chaps">—</div><div class="kpi-lbl">Chapters</div>';
     kpiBar.appendChild(tChaps);
+
+    // Extra KPI: Fire Stations (filtered)
+    var tStns = document.createElement('div');
+    tStns.className = 'kpi-tile kpi-cat';
+    tStns.style.setProperty('--kc','#fbbf24');
+    tStns.innerHTML = '<div class="kpi-num dim" id="kpi-stations">—</div><div class="kpi-lbl"><span style="display:inline-block;width:8px;height:8px;background:#111;border:1.5px solid #fbbf24;border-radius:1px;margin-right:4px;vertical-align:middle"></span>Fire Stations</div>';
+    kpiBar.appendChild(tStns);
   }
 
   function updateKpis() {
@@ -1380,17 +1387,7 @@ function loadAllFilters() {
           outline: { color: [251, 191, 36, 220], width: 1 }
         })
       },
-      popupTemplate: {
-        title: '{station_name}',
-        content: function(evt) {
-          var f = evt.graphic.attributes;
-          var rows = '';
-          if (f.department_name) rows += '<tr><td style="padding:3px 8px 3px 0;color:#888">Department</td><td style="padding:3px 0">' + f.department_name + '</td></tr>';
-          if (f.city) rows += '<tr><td style="padding:3px 8px 3px 0;color:#888">Location</td><td style="padding:3px 0">' + f.city + (f.state ? ', ' + f.state : '') + (f.zip_code ? ' ' + f.zip_code : '') + '</td></tr>';
-          if (f.unit_count) rows += '<tr><td style="padding:3px 8px 3px 0;color:#888">Units</td><td style="padding:3px 0">' + f.unit_count + '</td></tr>';
-          return '<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:Avenir Next,sans-serif">' + rows + '</table>';
-        }
-      }
+      popupEnabled: false
     });
 
     map.addMany([_sviLayer, _nriLayer, _stationsLayer]);
@@ -1446,6 +1443,7 @@ function loadAllFilters() {
         });
       }
       _stationDataReady = true;
+      updateStationKpi();
       // If depts were selected before data loaded, zoom now
       if (_selectedDepts.length) zoomToSelectedDepts();
     });
@@ -1507,9 +1505,28 @@ function loadAllFilters() {
       }
     }
 
+    function updateStationKpi() {
+      var el = $('kpi-stations');
+      if (!el) return;
+      if (!_stationDataReady) { el.textContent = '—'; el.className = 'kpi-num dim'; return; }
+      var expr = _stationsLayer ? _stationsLayer.definitionExpression : '1=1';
+      var count;
+      if (!expr || expr === '1=1') {
+        count = _stationData.length;
+      } else {
+        // Count from in-memory data matching selected depts
+        count = _stationData.filter(function(s){
+          return _selectedDepts.indexOf(s.department_name) !== -1;
+        }).length;
+      }
+      el.textContent = count.toLocaleString();
+      el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
+    }
+
     function applyDeptFilter() {
       if (!_selectedDepts.length) {
         _stationsLayer.definitionExpression = '1=1';
+        updateStationKpi();
         return;
       }
       var clauses = _selectedDepts.map(function(n){
@@ -1520,6 +1537,7 @@ function loadAllFilters() {
       _stationsLayer.visible = true;
       var cb = $('cb-stations');
       if (cb) cb.checked = true;
+      updateStationKpi();
       // Zoom — if data ready go now, otherwise fetch callback will trigger it
       zoomToSelectedDepts();
     }
@@ -1659,7 +1677,7 @@ function loadAllFilters() {
     _view = new MapView({
       container: 'viewDiv', map: map,
       extent: {
-        xmin: -124.0, ymin: 24.0, xmax: -67.0, ymax: 50.0,
+        xmin: -122.0, ymin: 25.5, xmax: -69.0, ymax: 48.5,
         spatialReference: { wkid: 4326 }
       }
     });
@@ -1671,13 +1689,36 @@ function loadAllFilters() {
     // ── Click → right sidebar feature info ──────────────────────
     _view.on('click', function(evt) {
       _view.hitTest(evt).then(function(response) {
+        // Check for FLARE incident first
         var hit = response.results.find(function(r) {
           return r.graphic && r.graphic.layer === _flareLayer;
         });
-        if (!hit) return;
-        var html = buildPopupContent({ graphic: hit.graphic });
-        $('sr-body').innerHTML = html;
-        $('sidebar-right').classList.add('open');
+        if (hit) {
+          var html = buildPopupContent({ graphic: hit.graphic });
+          $('sr-body').innerHTML = html;
+          $('sidebar-right').classList.add('open');
+          return;
+        }
+        // Check for fire station
+        var stHit = response.results.find(function(r) {
+          return r.graphic && r.graphic.layer === _stationsLayer;
+        });
+        if (stHit) {
+          var a = stHit.graphic.attributes;
+          var h = '<div class="pop-header" style="display:flex;align-items:flex-start;gap:10px;padding:0 0 10px">';
+          h += '<div style="width:28px;height:28px;background:#111;border:2px solid #fbbf24;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">🚒</div>';
+          h += '<div><div class="pop-title">' + (a.station_name || 'Fire Station') + '</div>';
+          h += '<div class="pop-subtitle">' + (a.department_name || '') + '</div></div></div>';
+          h += '<div class="pop-body">';
+          h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+          if (a.department_name) h += '<tr><td style="padding:5px 10px 5px 0;color:#888;white-space:nowrap">Department</td><td style="padding:5px 0;font-weight:600">' + a.department_name + '</td></tr>';
+          if (a.city) h += '<tr><td style="padding:5px 10px 5px 0;color:#888">Location</td><td style="padding:5px 0">' + a.city + (a.state ? ', ' + a.state : '') + (a.zip_code ? ' ' + a.zip_code : '') + '</td></tr>';
+          if (a.unit_count) h += '<tr><td style="padding:5px 10px 5px 0;color:#888">Units</td><td style="padding:5px 0">' + a.unit_count + '</td></tr>';
+          if (a.neris_id) h += '<tr><td style="padding:5px 10px 5px 0;color:#888">NERIS ID</td><td style="padding:5px 0;font-family:monospace;font-size:11px">' + a.neris_id + '</td></tr>';
+          h += '</table></div>';
+          $('sr-body').innerHTML = h;
+          $('sidebar-right').classList.add('open');
+        }
       });
     });
 

@@ -1621,8 +1621,9 @@ function loadAllFilters() {
       var cb = $('cb-stations');
       if (cb) cb.checked = true;
       updateStationKpi();
-      zoomToSelectedDepts();
       updateDeptKpiBar();
+      // Small delay so layer registers new definitionExpression before queryExtent
+      setTimeout(zoomToSelectedDepts, 200);
     }
 
     function renderChips() {

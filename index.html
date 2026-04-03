@@ -1497,8 +1497,8 @@ function loadAllFilters() {
       } else if (pts.length > 1) {
         var xs = pts.map(function(s){ return s.x; });
         var ys = pts.map(function(s){ return s.y; });
-        var xpad = Math.max(0.1, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.2);
-        var ypad = Math.max(0.1, (Math.max.apply(null,ys) - Math.min.apply(null,ys)) * 0.2);
+        var xpad = Math.max(0.02, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.05);
+        var ypad = Math.max(0.02, (Math.max.apply(null,ys) - Math.min.apply(null,ys)) * 0.05);
         _view.goTo({
           extent: {
             xmin: Math.min.apply(null,xs) - xpad, xmax: Math.max.apply(null,xs) + xpad,

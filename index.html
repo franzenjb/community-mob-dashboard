@@ -1868,13 +1868,18 @@ function loadAllFilters() {
             h += '</div>';
           }
 
-          // Services
-          h += '<div style="margin-bottom:6px"><div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:4px">Fire Services</div>';
-          h += serviceGrid(a.fire_services, ALL_FIRE_SERVICES, '#C41E3A', '#fdf5f6', '#f5c6c6') + '</div>';
-          h += '<div style="margin-bottom:6px"><div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:4px">EMS Services</div>';
-          h += serviceGrid(a.ems_services, ALL_EMS_SERVICES, '#2D6DB4', '#eff6ff', '#bfdbfe') + '</div>';
-          h += '<div style="margin-bottom:6px"><div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:4px">Investigation</div>';
-          h += serviceGrid(a.investigation_services, ALL_INV_SERVICES, '#16a34a', '#f0fdf4', '#bbf7d0') + '</div>';
+          // Services — collapsed toggle
+          h += '<details style="margin-bottom:10px">' +
+               '<summary style="cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;list-style:none;display:flex;align-items:center;gap:5px;padding:5px 0;border-top:1px solid #f0f0f0">' +
+               '<span style="font-size:11px">▸</span> Services &amp; Capabilities</summary>' +
+               '<div style="padding-top:8px">' +
+               '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:3px">Fire Services</div>' +
+               serviceGrid(a.fire_services, ALL_FIRE_SERVICES, '#C41E3A', '#fdf5f6', '#f5c6c6') +
+               '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:6px 0 3px">EMS Services</div>' +
+               serviceGrid(a.ems_services, ALL_EMS_SERVICES, '#2D6DB4', '#eff6ff', '#bfdbfe') +
+               '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:6px 0 3px">Investigation</div>' +
+               serviceGrid(a.investigation_services, ALL_INV_SERVICES, '#16a34a', '#f0fdf4', '#bbf7d0') +
+               '</div></details>';
 
           // Accreditation + shifts
           var accrBits = [];
@@ -2011,13 +2016,18 @@ function loadAllFilters() {
 
               // Staffing detail removed — shown in stats grid above
 
-              // Services tags
-              dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:4px">Fire Services</div>';
-              dh += serviceGrid(d.fire_services, ALL_FIRE_SERVICES, '#C41E3A', '#fdf5f6', '#f5c6c6');
-              dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:4px">EMS Services</div>';
-              dh += serviceGrid(d.ems_services, ALL_EMS_SERVICES, '#2D6DB4', '#eff6ff', '#bfdbfe');
-              dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:4px">Investigation</div>';
-              dh += serviceGrid(d.investigation_services, ALL_INV_SERVICES, '#16a34a', '#f0fdf4', '#bbf7d0');
+              // Services tags — collapsed toggle
+              dh += '<details style="margin-bottom:8px">' +
+                '<summary style="cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;list-style:none;display:flex;align-items:center;gap:5px;padding:5px 0;border-top:1px solid #f0f0f0">' +
+                '<span style="font-size:11px">▸</span> Services &amp; Capabilities</summary>' +
+                '<div style="padding-top:6px">' +
+                '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:3px">Fire Services</div>' +
+                serviceGrid(d.fire_services, ALL_FIRE_SERVICES, '#C41E3A', '#fdf5f6', '#f5c6c6') +
+                '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:6px 0 3px">EMS Services</div>' +
+                serviceGrid(d.ems_services, ALL_EMS_SERVICES, '#2D6DB4', '#eff6ff', '#bfdbfe') +
+                '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:6px 0 3px">Investigation</div>' +
+                serviceGrid(d.investigation_services, ALL_INV_SERVICES, '#16a34a', '#f0fdf4', '#bbf7d0') +
+                '</div></details>';
 
               // Accreditation + shifts
               var bits = [];

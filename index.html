@@ -382,7 +382,7 @@
   </div>
   <div class="kpi-tile" style="--kc:#60a5fa;border-right:1px solid rgba(255,255,255,0.06)">
     <div class="kpi-num dim" id="dkpi-pop">—</div>
-    <div class="kpi-lbl">Population Protected</div>
+    <div class="kpi-lbl">Population</div>
   </div>
   <div class="kpi-tile" style="--kc:#34d399">
     <div class="kpi-num dim" id="dkpi-ff">—</div>
@@ -1786,7 +1786,7 @@ function loadAllFilters() {
           }
           if (a.station_count) h += dkpi('Stations', a.station_count, '#C41E3A');
           if (a.unit_count) h += dkpi('Apparatus', a.unit_count, '#f97316');
-          if (a.population_protected) h += dkpi('Pop. Protected', a.population_protected, '#2D6DB4');
+          if (a.population_protected) h += dkpi('Population', a.population_protected, '#2D6DB4');
           if (totalFF) h += dkpi('Firefighters', totalFF, '#16a34a');
           h += '</div>';
 
@@ -1948,7 +1948,7 @@ function loadAllFilters() {
               }
               if (d.station_count) dh += dstat('Stations', d.station_count, '#C41E3A');
               if (d.unit_count) dh += dstat('Apparatus', d.unit_count, '#f97316');
-              if (d.population_protected) dh += dstat('Pop. Protected', d.population_protected, '#2D6DB4');
+              if (d.population_protected) dh += dstat('Population', d.population_protected, '#2D6DB4');
               if (totalFF) dh += dstat('Firefighters', totalFF, '#16a34a');
               dh += '</div>';
 

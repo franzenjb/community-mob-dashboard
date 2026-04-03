@@ -1162,7 +1162,7 @@ require([
       else item.sel.classList.remove('has-value');
     });
     updateKpis();
-    if (typeof updateStationKpi === 'function') updateStationKpi();
+    if (typeof updateStationKpi === 'function' && _stationsLayer && _stationsLayer.visible) updateStationKpi();
   }
 
   function zoomToFiltered(chainIndex) {
@@ -1241,6 +1241,10 @@ require([
       _stationsLayer.visible = true;
       var cbSt = $('cb-stations');
       if (cbSt) cbSt.checked = true;
+      // Re-run KPI after making layer visible so count reflects current filter
+      setTimeout(function() {
+        if (typeof updateStationKpi === 'function') updateStationKpi();
+      }, 300);
     }
 
     // Auto-enable the matching boundary layer when a filter is selected

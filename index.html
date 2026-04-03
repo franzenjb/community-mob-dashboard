@@ -1158,7 +1158,7 @@ require([
       else item.sel.classList.remove('has-value');
     });
     updateKpis();
-    if (typeof updateStationKpi === 'function' && _stationsLayer && _stationsLayer.visible) updateStationKpi();
+    if (typeof updateStationKpi === 'function') updateStationKpi();
   }
 
   function zoomToFiltered(chainIndex) {
@@ -1166,9 +1166,17 @@ require([
     var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
     var rcW = buildRCWhere();
     if (rcW === '1=1') return;
-    // Clip to US bounds to exclude records with bad 0,0 coordinates
-    var usClause = rcW + " AND x > -180 AND x < -50 AND y > 15 AND y < 75";
-    _stationsLayer.queryExtent({ where: usClause }).then(function(r) {
+    // Use a geometry envelope to clip to US bounds — avoids bad geometry records
+    var usEnvelope = {
+      xmin: -125, ymin: 24, xmax: -66, ymax: 50,
+      spatialReference: { wkid: 4326 }
+    };
+    _stationsLayer.queryExtent({
+      where: rcW,
+      geometry: usEnvelope,
+      geometryType: 'esriGeometryEnvelope',
+      spatialRelationship: 'intersects'
+    }).then(function(r) {
       if (!r || !r.extent) return;
       _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
            .catch(function(){});
@@ -1240,10 +1248,7 @@ require([
       var cbSt = $('cb-stations');
       if (cbSt) cbSt.checked = true;
     }
-    // Delay KPI update so definitionExpression propagates first
-    setTimeout(function() {
-      if (typeof updateStationKpi === 'function') updateStationKpi();
-    }, 500);
+    updateStationKpi();
 
     // Auto-enable the matching boundary layer when a filter is selected
     // Auto-enable boundary layer — divisions and regions only, not chapters (too granular at national scale)
@@ -1521,7 +1526,7 @@ function loadAllFilters() {
     _stationsLayer = new FeatureLayer({
       url: STATIONS_URL,
       visible: false,
-      minScale: 3000000,
+      minScale: 0,
       title: 'Fire Stations',
       outFields: ['*'],
       renderer: {
@@ -1649,8 +1654,8 @@ function loadAllFilters() {
     function updateStationKpi() {
       var el = $('kpi-stations');
       if (!el || !_stationsLayer) return;
-      var expr = _stationsLayer.definitionExpression || '1=1';
-      _stationsLayer.queryFeatureCount({ where: expr }).then(function(count) {
+      var rcW = buildRCWhere();
+      _stationsLayer.queryFeatureCount({ where: rcW }).then(function(count) {
         el.textContent = count.toLocaleString();
         el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
       }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });

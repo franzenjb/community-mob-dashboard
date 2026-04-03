@@ -1166,40 +1166,15 @@ require([
   }
 
   function zoomToFiltered(chainIndex) {
-    if (!_view) return;
-    var expand = chainIndex <= 1 ? 1.05 : chainIndex <= 2 ? 1.04 : 1.08;
-
-    // Always zoom using the RC boundary layer — it's authoritative and has no race condition
-    // Pick the most specific boundary layer that has an active filter
-    var boundaryId = 'chap';
-    if (!_activeFilter.chapter && !_activeFilter.region) boundaryId = 'div';
-    else if (!_activeFilter.chapter) boundaryId = 'reg';
-
-    var bl = _boundaryLayers[boundaryId];
-    if (bl) {
-      // Build where clause against the boundary layer fields
-      var bParts = [];
-      if (_activeFilter.division) bParts.push("Division='" + _activeFilter.division.replace(/'/g,"''") + "'");
-      if (_activeFilter.region)   bParts.push("Region='"   + _activeFilter.region.replace(/'/g,"''")   + "'");
-      if (_activeFilter.chapter)  bParts.push("Chapter='"  + _activeFilter.chapter.replace(/'/g,"''")  + "'");
-      var bWhere = bParts.length ? bParts.join(' AND ') : '1=1';
-
-      bl.queryExtent({ where: bWhere }).then(function(r) {
-        if (!r || !r.extent) return;
-        _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
-             .catch(function(){});
-      }).catch(function(){});
-      return;
-    }
-
-    // Fallback: FLARE layer if incidents are on
-    if ((_showWith || _showWithout) && _flareLayer) {
-      _flareLayer.queryExtent({ where: buildWhere() }).then(function(r) {
-        if (!r || !r.extent) return;
-        _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
-             .catch(function(){});
-      }).catch(function(){});
-    }
+    if (!_view || !_stationsLayer) return;
+    var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
+    var rcW = buildRCWhere();
+    // NERIS stations layer is public and has Division/Region/Chapter — always use for zoom
+    _stationsLayer.queryExtent({ where: rcW }).then(function(r) {
+      if (!r || !r.extent) return;
+      _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
+           .catch(function(){});
+    }).catch(function(){});
   }
 
   function queryUnique(fieldName, whereClause) {

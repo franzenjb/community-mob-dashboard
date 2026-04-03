@@ -365,18 +365,22 @@
 <!-- Dept KPI bar — slides down when dept filter active -->
 <div id="dept-kpi-bar" style="
   display:none; background:#1a1f2e; border-top:1px solid rgba(255,255,255,0.08);
-  height:64px; flex-shrink:0;
+  height:64px; flex-shrink:0; overflow-x:auto; scrollbar-width:none;
   align-items:stretch;
 ">
-  <div class="kpi-tile" style="--kc:#fbbf24;flex:1;border-right:1px solid rgba(255,255,255,0.06)">
+  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
+    <div class="kpi-num dim" id="dkpi-depts">—</div>
+    <div class="kpi-lbl">Departments</div>
+  </div>
+  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
     <div class="kpi-num dim" id="dkpi-stations">—</div>
     <div class="kpi-lbl">Stations</div>
   </div>
-  <div class="kpi-tile" style="--kc:#fbbf24;flex:1;border-right:1px solid rgba(255,255,255,0.06)">
+  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
     <div class="kpi-num dim" id="dkpi-units">—</div>
-    <div class="kpi-lbl">Apparatus</div>
+    <div class="kpi-lbl">Apparatus Units</div>
   </div>
-  <div class="kpi-tile" style="--kc:#fbbf24;flex:1">
+  <div class="kpi-tile" style="--kc:#34d399">
     <div class="kpi-num dim" id="dkpi-ff">—</div>
     <div class="kpi-lbl">Firefighters</div>
   </div>
@@ -1610,6 +1614,7 @@ function loadAllFilters() {
           el.textContent = val > 0 ? val.toLocaleString() : '—';
           el.className = 'kpi-num' + (val === 0 ? ' dim' : '');
         }
+        setKpi('dkpi-depts',    _selectedDepts.length);
         setKpi('dkpi-stations', totStations);
         setKpi('dkpi-units',    totUnits);
         setKpi('dkpi-ff',       totFF);
@@ -1844,7 +1849,7 @@ function loadAllFilters() {
           h += '<div style="font-size:11px;color:#888;margin-top:2px">' + (a.city||'') + (a.state ? ', '+a.state : '') + (a.department_type ? ' &nbsp;·&nbsp; '+a.department_type : '') + '</div></div></div>';
 
           // Headline stats
-          h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+          h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">';
           function dkpi(label, val, color) {
             if (!val && val !== 0) return '';
             return '<div style="background:#f8f8f8;border-radius:6px;padding:8px 10px;text-align:center">' +
@@ -1997,7 +2002,7 @@ function loadAllFilters() {
               }
 
               // Stats grid
-              dh += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+              dh += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">';
               function dstat(label, val, color) {
                 if (!val) return '';
                 return '<div style="background:#f8f8f8;border-radius:5px;padding:6px 8px;text-align:center">' +

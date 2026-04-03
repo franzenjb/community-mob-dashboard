@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23C41E3A'/></svg>">
+  <title>FLARE — Mobile</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/dark/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red:  #C41E3A;
+      --bg:   #0a0a0a;
+      --bg2:  #141414;
+      --dim:  #2e2e2e;
+      --muted:#555;
+      --text: #e8e8e8;
+      --gap:  8px;
+      --c0: #C41E3A;
+      --c1: #00d4ff;
+      --c2: #ff6b35;
+      --c3: #a855f7;
+      --c4: #f59e0b;
+    }
+    html, body { height: 100%; width: 100%; overflow: hidden;
+      background: var(--bg); font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+
+    /* ── LAYOUT ── */
+    #app { display: flex; flex-direction: column; height: 100%; }
+
+    /* ── HEADER ── */
+    #mob-header {
+      height: 44px; flex-shrink: 0;
+      background: var(--red);
+      display: flex; align-items: center; padding: 0 14px; gap: 10px;
+      z-index: 50;
+    }
+    #mob-header-title { font-size: 16px; font-weight: 700; letter-spacing: 0.05em; color: #fff; }
+    #mob-header-badge {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      background: rgba(0,0,0,0.25); color: rgba(255,255,255,0.85);
+      padding: 2px 8px; border-radius: 2px;
+    }
+    #mob-kpi {
+      margin-left: auto; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.9);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── MAP ── */
+    #map-wrap { flex: 1; position: relative; min-height: 0; }
+    #viewDiv  { width: 100%; height: 100%; }
+
+    /* ── LOADING ── */
+    .loading-overlay {
+      position: absolute; inset: 0; background: rgba(10,10,10,0.92);
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; z-index: 200; gap: 14px;
+    }
+    .loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid #333;
+      border-top-color: var(--red); border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg { font-size: 12px; color: #666; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    /* ── TRAY ── */
+    #tray {
+      height: 22vh; min-height: 140px; max-height: 200px;
+      display: flex; flex-direction: column;
+      padding: 6px var(--gap) var(--gap); gap: 6px;
+      flex-shrink: 0; border-top: 1px solid var(--dim);
+    }
+
+    /* ── TRAY HEADER ── */
+    #tray-header {
+      display: flex; align-items: center; gap: var(--gap); flex-shrink: 0; height: 26px;
+    }
+    .hdr-btn {
+      font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--muted); background: none;
+      border: 1px solid var(--dim); padding: 0 12px; height: 100%;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: color 0.1s, border-color 0.1s;
+    }
+    .hdr-btn:active { color: var(--text); border-color: var(--text); }
+    #depth-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--muted); text-align: center; flex: 1; transition: color 0.25s;
+    }
+
+    /* ── GRID ── */
+    #grid-viewport { flex: 1; overflow: hidden; min-height: 0; }
+    #grid-track {
+      display: flex; width: 500%; height: 100%;
+      transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    .layer-grid {
+      width: 20%; height: 100%; flex-shrink: 0;
+      display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+      gap: 5px;
+    }
+    .btn {
+      font-family: inherit; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      background: var(--bg2); border: 1px solid var(--dim); color: var(--muted);
+      cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px;
+      padding: 4px; line-height: 1.2; -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s, color 0.1s, border-color 0.1s;
+      user-select: none;
+    }
+    .btn:active:not(:disabled) { background: #1e1e1e; }
+    .btn.content { border-color: var(--layer-color); color: var(--layer-color); }
+    .btn.content.on {
+      background: color-mix(in srgb, var(--layer-color) 12%, var(--bg2));
+      box-shadow: inset 0 0 0 1px var(--layer-color);
+    }
+    .btn.content:active { background: color-mix(in srgb, var(--layer-color) 18%, var(--bg2)); }
+    .btn-sub { font-size: 7px; font-weight: 500; letter-spacing: 0.05em; color: var(--muted); }
+    .btn.map-btn { border-color: var(--dim); color: var(--text); background: #181818; font-size: 11px; }
+    .btn.nav { font-size: 20px; letter-spacing: 0; color: var(--text); background: #1e1e1e; border-color: #666; }
+    .btn.nav:not(:disabled):active { background: #2a2a2a; }
+    .btn.nav:disabled { opacity: 0.15; cursor: default; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: calc(22vh + 8px); left: 50%; transform: translateX(-50%);
+      background: rgba(20,20,20,0.95); border: 1px solid var(--dim);
+      color: var(--text); font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; padding: 6px 16px; z-index: 300;
+      opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* Hidden desktop controls — needed by original JS event listeners */
+    #desktop-controls { display: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="mob-header">
+    <span id="mob-header-title">FLARE</span>
+    <span id="mob-header-badge">Mobile</span>
+    <span id="mob-kpi">— incidents</span>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="viewDiv"></div>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div class="loading-msg">Loading FLARE</div>
+    </div>
+  </div>
+
+  <!-- TRAY -->
+  <div id="tray">
+    <div id="tray-header">
+      <button class="hdr-btn" onclick="showHelp()">?</button>
+      <div id="depth-label">INCIDENTS</div>
+      <button class="hdr-btn" onclick="mobileClearAll()">RESET</button>
+    </div>
+    <div id="grid-viewport">
+      <div id="grid-track"><!-- built by JS --></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- Hidden desktop controls (original JS binds to these) -->
+<div id="desktop-controls">
+  <input type="checkbox" id="cb-with">
+  <input type="checkbox" id="cb-without">
+  <input type="checkbox" id="cb-stations">
+  <input type="checkbox" id="cb-depts">
+  <input type="checkbox" id="cb-div" checked>
+  <input type="checkbox" id="cb-reg">
+  <input type="checkbox" id="cb-chap">
+  <input type="checkbox" id="cb-svi">
+  <input type="checkbox" id="cb-nri">
+  <!-- Stubs the original JS needs to not throw -->
+  <div id="kpiBar"></div>
+  <div id="left-wrap"></div>
+  <select id="sel-division"><option value="">All</option></select>
+  <select id="sel-region"><option value="">All</option></select>
+  <select id="sel-chapter"><option value="">All</option></select>
+  <input id="station-search" type="text">
+  <div id="dept-results"></div>
+  <div id="dept-chips"></div>
+  <div id="filter-count"></div>
+  <div id="sidebar-right"></div>
+  <div id="sr-body"></div>
+</div>
+
+<script src="https://js.arcgis.com/4.31/"></script>
+<script>
+require([
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/renderers/UniqueValueRenderer",
+  "esri/renderers/ClassBreaksRenderer",
+  "esri/symbols/SimpleMarkerSymbol",
+  "esri/symbols/PictureMarkerSymbol",
+  "esri/symbols/SimpleFillSymbol",
+  "esri/widgets/Home",
+  "esri/widgets/ScaleBar",
+  "esri/widgets/Expand",
+  "esri/widgets/Legend",
+  "esri/PopupTemplate",
+  "esri/core/reactiveUtils"
+], function(
+  Map, MapView, FeatureLayer,
+  UniqueValueRenderer, ClassBreaksRenderer,
+  SimpleMarkerSymbol, SimpleFillSymbol, PictureMarkerSymbol,
+  Home, ScaleBar, Expand, Legend, PopupTemplate, reactiveUtils
+) {
+
+  // ═══════════════════════════════════════════════════════════
+  // CONFIG
+  // ═══════════════════════════════════════════════════════════
+  var PORTAL     = "https://arc-nhq-gis.maps.arcgis.com";
+  var FLARE_ITEM = "3c225e4e9c344c7bb5424acf1adfb982";
+
+  // Reference layer URLs (from tract-profile-2)
+  var SVI_URL      = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/8";
+  var NRI_URL      = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0";
+  var DEPARTMENTS_URL = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/NERIS_Fire_Departments_RC_Enriched/FeatureServer/0";
+  var STATIONS_URL    = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/NERIS_Fire_Stations_RC_Enriched/FeatureServer/0";
+  var COLOR_WITH    = '#22c55e';  // green — Fire WITH RC Notification
+  var COLOR_WITHOUT = '#ef4444';  // red   — Fire WITHOUT RC Notification
+
+  // ARC Geography boundaries (from chapter-view)
+  var ARC_GEO_BASE = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Master_ARC_Geography_2022/FeatureServer";
+  var BOUNDARY_CONFIGS = [
+    { id:'div',  layerId:1, field:'Division', color:'#7B2D8E', width:2.0, minScale:0,       maxScale:0,       labelMinScale:25000000, labelMaxScale:3000000 },
+    { id:'reg',  layerId:2, field:'Region',   color:'#2D6DB4', width:1.5, minScale:0,       maxScale:0,       labelMinScale:8000000,  labelMaxScale:800000  },
+    { id:'chap', layerId:3, field:'Chapter',  color:'#C41E3A', width:1.2, minScale:5000000, maxScale:0,       labelMinScale:5000000,  labelMaxScale:0       }
+  ];
+
+  // Categories to merge: 'Fire with RC Care' rolls into 'Fire with RC Notification'
+  var MERGE_INTO = {
+    'FIRE WITH RC CARE':         'Fire with RC Notification',
+    'FIRE WITH RC NOTIFICATION': 'Fire with RC Notification'   // normalize all-caps data variant
+  };
+
+  // Category colors: index 0..N for each unique master label value
+  var CAT_COLORS = ["#E63950","#F59E0B","#10B981","#6366F1","#F97316","#06B6D4","#8B5CF6"];
+
+  // Field candidates — tried in order, first match wins
+  var FIELDS = {
+    division:    ["Division","DIVISION","division_name","DivName","Div_Name","DIV_NAME","div_name"],
+    region:      ["Region","REGION","region_name","RegionName","REG_NAME","reg_name"],
+    chapter:     ["Chapter","CHAPTER","chapter_name","ChapterName","Chap_Name","CHAP_NAME"],
+    county:      ["County","county","COUNTY","county_name","County_Name","COUNTY_NAME",
+                  "cnty_name","cnty_nm","CNTY_NAME"],
+    city:        ["IncidentCity","Incident_City","incident_city","inc_city",
+                  "City","city","CITY","City_Name","city_name","CITY_NAME",
+                  "Muni_Name","muni_name","Municipality","municipality","Place","place"],
+    zip:         ["Zip","zip","ZIP","Zip_Code","zip_code","ZIP_CODE","ZipCode","PostalCode","postal_code"],
+    state:       ["State","state","STATE","State_Name","state_name","STATE_NAME","Inc_State","IncState"],
+    masterLabel: ["Master_Label","MasterLabel","master_label","masterLabel",   // confirmed
+                  "Label","label","Category","category","IncidentType","incident_type","Type","type"],
+    date:        ["Event_Date","event_date","EventDate","Alarm_Date","Alarm_Time","AlarmDateTime",  // confirmed
+                  "incident_date","IncidentDate","AlarmDate","alarm_date","ReportedDate","Inc_Date"],
+    address:     ["IncidentAddress","Incident_Address","incident_address","Inc_Address",
+                  "Address","address","Full_Address","full_address","Street","street",
+                  "Location","location","Street_Address","street_address"],
+    fireDept:    ["FD_Name","fd_name","FireDepartment","fire_department","FireDept","fire_dept",
+                  "DeptName","dept_name","Department","department","Agency","agency",
+                  "AgencyName","agency_name","FDName","Fire_Department_Name","dept",
+                  "Organization","organization","Org","org","Jurisdiction","jurisdiction",
+                  "ResponsibleOrg","responsible_org","RespondingOrg","responding_org",
+                  "FD_Jurisdiction","fd_jurisdiction","FireDept_Name","fire_dept_name",
+                  "FD","fd","FDDesc","fd_desc","FireDepartmentName","fire_department_name"],
+    casualties:  ["Casualties","casualties","Deaths","deaths","Fatalities","fatalities","Injuries","injuries"]
+  };
+
+
+  // ── NERIS service vocabularies (complete lists for greyed-out display) ──────
+  var ALL_FIRE_SERVICES = ["ANIMAL TECHRESCUE","ARFF FIREFIGHTING","CAUSE ORIGIN","CAVE SAR","COLLAPSE RESCUE","CONFINED SPACE","DIVE SAR","FLOOD SAR","HAZMAT OPS","HAZMAT TECHNICIAN","HELO SAR","HIGHRISE FIREFIGHTING","ICE RESCUE","MACHINERY RESCUE","MARINE FIREFIGHTING","MINE SAR","PETROCHEM FIREFIGHTING","REHABILITATION","ROPE RESCUE","RRD EXISTING","RRD NEWCONST","RRD PLANS","RRD PUBLICED","STRUCTURAL FIREFIGHTING","SURF RESCUE","SWIFTWATER SAR","TOWER SAR","TRAINING DRIVER","TRAINING ELF","TRAINING OD","TRAINING VETFF","TRENCH RESCUE","VEHICLE RESCUE","WATER SAR","WATERCRAFT RESCUE","WILDERNESS SAR","WILDLAND FIREFIGHTING"];
+  var ALL_EMS_SERVICES  = ["AERO TRANSPORT","ALS NO TRANSPORT","ALS TRANSPORT","BLS NO TRANSPORT","BLS TRANSPORT","COMMUNITY MED","NO MEDICAL"];
+  var ALL_INV_SERVICES  = ["COMPANY LEVEL","DEDICATED","K9 DETECT","LAW ENFORCEMENT","YOUTH FIRESETTER"];
+
+
+  // Renders a two-column alphabetical grid: active items colored, inactive greyed
+  function serviceGrid(activeStr, allList, activeColor, activeBg, activeBorder) {
+    var active = new Set((activeStr||'').split(',').map(function(s){ return s.trim(); }).filter(Boolean));
+    var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;margin-bottom:8px">';
+    allList.forEach(function(item) {
+      var on = active.has(item);
+      h += '<div style="font-size:9.5px;padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
+        (on
+          ? 'background:'+activeBg+';border:1px solid '+activeBorder+';color:'+activeColor+';font-weight:600'
+          : 'background:#f5f5f5;border:1px solid #e8e8e8;color:#ccc') +
+        '" title="'+item+'">' + item + '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════
+  var _flareLayer      = null;
+  var _fieldMap        = {};
+  var _categories      = [];
+  var _catColorMap     = {};
+  var _activeFilter    = { division:'', region:'', chapter:'' };
+  var _sviLayer        = null;
+  var _nriLayer        = null;
+  var _stationsLayer   = null;   // FeatureLayer — 62,449 stations
+  var _deptsLayer      = null;   // FeatureLayer — 30,687 dept HQ points
+  var _view            = null;
+  var _kpiTotal        = 0;
+  var _showWith        = false;
+  var _showWithout     = false;
+  var _deptSearch      = '';
+  var _boundaryLayers  = {};   // id → FeatureLayer (div, reg, chap)
+
+  // Filter key → boundary layer id (auto-enable on select)
+  var FILTER_TO_BOUNDARY = { division:'div', region:'reg', chapter:'chap' };
+
+  // Popup style picker
+  var _popupStyle   = 'A';
+  var _lastStAttrs  = null;   // last station click attributes (for re-render on style switch)
+  var _lastDeptAttrs = null;  // async dept data loaded for last station
+
+  // US state abbreviation → full name
+  var STATE_NAMES = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'Washington D.C.',PR:'Puerto Rico'};
+  function stFull(code){ return STATE_NAMES[String(code||'').trim().toUpperCase()] || code || ''; }
+
+  // ═══════════════════════════════════════════════════════════
+  // DOM
+  // ═══════════════════════════════════════════════════════════
+  var $ = function(id) { return document.getElementById(id); };
+  var loadingOverlay = $('loadingOverlay');
+  var loadingMsg     = $('loadingMsg');
+  var kpiBar         = $('kpiBar');
+  var kpiTotal       = $('kpi-total');
+  var btnClear       = $('btn-clear');
+  var selDivision    = $('sel-division');
+  var selRegion      = $('sel-region');
+  var selChapter     = $('sel-chapter');
+
+  // ── Cascade chain — order matters ───────────────────────────────────
+  var FILTER_CHAIN = [
+    { key:'division', label:'Division', sel:null },
+    { key:'region',   label:'Region',   sel:null },
+    { key:'chapter',  label:'Chapter',  sel:null }
+  ];
+  function wireChain() {
+    FILTER_CHAIN[0].sel = selDivision;
+    FILTER_CHAIN[1].sel = selRegion;
+    FILTER_CHAIN[2].sel = selChapter;
+    FILTER_CHAIN.forEach(function(item, idx) {
+      item.sel.addEventListener('change', function() { onChainChange(idx); });
+    });
+  }
+
+  function setMsg(t) { loadingMsg.textContent = t; loadingOverlay.classList.remove('hidden'); }
+  function hideLoad() { loadingOverlay.classList.add('hidden'); }
+
+  // ═══════════════════════════════════════════════════════════
+  // FIELD RESOLUTION
+  // ═══════════════════════════════════════════════════════════
+  function resolveField(fields, key) {
+    var names = fields.map(function(f){ return f.name; });
+    var cands = FIELDS[key] || [];
+    for (var i=0; i<cands.length; i++) {
+      if (names.indexOf(cands[i]) !== -1) return cands[i];
+    }
+    // Case-insensitive partial fallback
+    var kl = key.toLowerCase().replace(/[_\s]/g,'');
+    for (var j=0; j<names.length; j++) {
+      if (names[j].toLowerCase().replace(/[_\s]/g,'').indexOf(kl) !== -1) return names[j];
+    }
+    return null;
+  }
+
+  function alias(fieldName) {
+    if (!fieldName || !_flareLayer) return fieldName || '';
+    var f = _flareLayer.fields.find(function(x){ return x.name===fieldName; });
+    return (f && f.alias) ? f.alias : fieldName;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // POPUP
+  // ═══════════════════════════════════════════════════════════
+  // Fields to suppress entirely from "Additional Details"
+  var SUPPRESS_FIELDS = [
+    /^(latitude|longitude|lat|lon|long|x|y|x_coord|y_coord|shape_x|shape_y)$/i,
+    /^(fips|county_fips|geoid|census_tract|tract_fips|objectid|oid|globalid|created_|last_edit|esri_)$/i,
+    /^svi[_\s]*risk$/i,  // catches SVI_Risk, SVI Risk, SVIRisk — shown in dedicated section
+    /^svi$/i             // bare "SVI" field
+  ];
+  // Check both field name AND alias
+  function isSuppressed(f) {
+    var n = typeof f === 'string' ? f : f.name;
+    var a = (f && f.alias) ? f.alias : '';
+    return SUPPRESS_FIELDS.some(function(re){ return re.test(n) || re.test(a); });
+  }
+
+  function fmtVal(attrs, fieldName) {
+    if (!fieldName) return null;
+    var v = attrs[fieldName];
+    if (v === null || v === undefined || String(v).trim() === '') return null;
+    // Truncate lat/lon to 2 decimals for privacy
+    if (/^(lat|latitude)$/i.test(fieldName) && typeof v === 'number')
+      return v.toFixed(2) + '°N';
+    if (/^(lon|long|longitude)$/i.test(fieldName) && typeof v === 'number')
+      return v.toFixed(2) + '°W';
+    // Format SVI as percentage
+    if (/svi/i.test(fieldName) && typeof v === 'number' && v >= 0 && v <= 1)
+      return Math.round(v * 100) + '%';
+    // Format date/time timestamps
+    if (typeof v === 'number' && v > 1000000000000) {
+      var d = new Date(v);
+      var datePart = d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+      var h = d.getHours(), m = d.getMinutes();
+      var timePart = (h || m) ? ' ' + (h % 12 || 12) + ':' + (m < 10 ? '0'+m : m) + (h < 12 ? ' AM' : ' PM') : '';
+      return datePart + timePart;
+    }
+    return String(v);
+  }
+
+  function popupField(label, value) {
+    var val = value || '<span class="pop-field-value empty">—</span>';
+    return '<div class="pop-field"><div class="pop-field-label">' + label +
+           '</div><div class="pop-field-value">' + val + '</div></div>';
+  }
+
+  // SVI field name in the layer (confirmed from popup data)
+  var SVI_LAYER_FIELD = 'SVI Risk';
+
+  function buildPopupContent(feature) {
+    var a = feature.graphic.attributes;
+    var catVal   = _fieldMap.masterLabel ? (a[_fieldMap.masterLabel] || '') : '';
+    var color    = _catColorMap[catVal] || '#888';
+    var division = fmtVal(a, _fieldMap.division) || '';
+    var chapter  = fmtVal(a, _fieldMap.chapter)  || '';
+    var region   = fmtVal(a, _fieldMap.region)   || '';
+    var county   = fmtVal(a, _fieldMap.county)   || '';
+    var city     = fmtVal(a, _fieldMap.city)     || '';
+    var zip      = fmtVal(a, _fieldMap.zip)      || '';
+    var addr     = fmtVal(a, _fieldMap.address)  || '';
+    var dt       = fmtVal(a, _fieldMap.date)      || '';
+    var dept     = fmtVal(a, _fieldMap.fireDept)  || '';
+    var cas      = fmtVal(a, _fieldMap.casualties) || '';
+    var svi      = fmtVal(a, SVI_LAYER_FIELD)     || '';
+
+    var locLine = [city, county ? county + ' Co.' : '', zip].filter(Boolean).join(', ');
+
+    // Known field names/aliases — suppress these from "Additional Details"
+    var knownNames = Object.values(_fieldMap).filter(Boolean);
+    // Push all plausible SVI field name variants so none slip through
+    ['SVI Risk','SVI_Risk','svi_risk','SVIRisk','SVI risk','svi risk',
+     'RPL_THEMES','RPL_THEME1','RPL_THEME2','RPL_THEME3','RPL_THEME4',
+     SVI_LAYER_FIELD].forEach(function(n){ knownNames.push(n); });
+
+    var html = '<div class="pop-card">';
+
+    // Colored header
+    html += '<div class="pop-header" style="background:' + color + '">';
+    html += '<div class="pop-title">' + (catVal || 'Fire Incident') + '</div>';
+    if (locLine) html += '<div class="pop-subtitle">' + locLine + '</div>';
+    html += '</div>';
+
+    html += '<div class="pop-body">';
+
+    // Address block
+    if (addr) html += '<div class="pop-field" style="margin-bottom:10px">' +
+      '<div class="pop-field-label">Address</div>' +
+      '<div class="pop-field-value">' + addr + '</div></div>';
+
+    // Primary grid
+    html += '<div class="pop-grid">';
+    if (dept)     html += popupField('Fire Department', dept);
+    if (dt)       html += popupField('Date / Time', dt);
+    if (chapter)  html += popupField('Chapter', chapter);
+    if (division) html += popupField('Division', division);
+    if (region)   html += popupField('Region', region);
+    if (county)   html += popupField('County', county);
+    if (city)     html += popupField('City', city);
+    if (zip)      html += popupField('ZIP', zip);
+    if (cas)      html += popupField('Casualties', cas);
+    html += '</div>';
+
+    // SVI badge
+    if (svi) {
+      var sviNum = parseFloat(a[SVI_LAYER_FIELD]);
+      var sviColor = sviNum >= 0.75 ? '#dc2626' : sviNum >= 0.5 ? '#f97316' : sviNum >= 0.25 ? '#f59e0b' : '#22c55e';
+      html += '<div class="pop-section-title">Community Vulnerability</div>';
+      html += '<div class="pop-grid">';
+      html += '<div class="pop-field pop-full">' +
+              '<div class="pop-field-label">Social Vulnerability Index</div>' +
+              '<div class="pop-field-value" style="color:' + sviColor + ';font-size:15px">' + svi + '</div>' +
+              '</div>';
+      html += '</div>';
+    }
+
+    // Additional — skip coords, FIPS, known fields (check both name AND alias)
+    var extras = _flareLayer.fields.filter(function(f) {
+      return f.type !== 'oid' && f.type !== 'geometry' && f.type !== 'blob' &&
+             knownNames.indexOf(f.name) === -1 && knownNames.indexOf(f.alias||'') === -1 &&
+             !isSuppressed(f);
+    }).map(function(f) {
+      var v = fmtVal(a, f.name);
+      return v ? { label: f.alias || f.name, value: v } : null;
+    }).filter(Boolean);
+
+    if (extras.length) {
+      html += '<div class="pop-section-title">Additional Details</div>';
+      html += '<div class="pop-grid">';
+      extras.forEach(function(e) { html += popupField(e.label, e.value); });
+      html += '</div>';
+    }
+
+    html += '</div></div>';
+    return html;
+  }
+
+
+  // Green = WITH RC Notification, Red = WITHOUT RC Notification
+  function catColor(label) {
+    return String(label).toUpperCase().indexOf('WITHOUT') !== -1 ? COLOR_WITHOUT : COLOR_WITH;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDERER
+  // ═══════════════════════════════════════════════════════════
+  function buildRenderer(fieldName, categories) {
+    var merged = mergedCategories(categories);
+    // Assign green/red per merged group
+    merged.forEach(function(grp) {
+      var c = catColor(grp.label);
+      grp.values.forEach(function(v) { _catColorMap[v] = c; });
+    });
+
+    // Build raw-value → canonical group label so all merged values share the exact same label string
+    var valToLabel = {};
+    merged.forEach(function(grp) {
+      grp.values.forEach(function(v) { valToLabel[v] = grp.label; });
+    });
+
+    // Build Arcade expression: normalize every raw value → its canonical group label.
+    // This guarantees exactly ONE legend entry per merged group (no duplicates).
+    var arcLines = ['var raw = $feature["' + fieldName + '"];'];
+    Object.keys(valToLabel).forEach(function(rawVal) {
+      var label = valToLabel[rawVal];
+      if (rawVal !== label) {   // only emit lines for non-identity mappings
+        arcLines.push(
+          'if (Upper(raw) == "' + rawVal.toUpperCase().replace(/"/g, '\\"') +
+          '") return "' + label.replace(/"/g, '\\"') + '";'
+        );
+      }
+    });
+    arcLines.push('return raw;');
+
+    // One uniqueValueInfo per merged group → exactly one legend entry per group
+    var infos = merged.map(function(grp) {
+      var c = catColor(grp.label);
+      return {
+        value: grp.label,
+        label: grp.label,
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle', color: c, size: 8,
+          outline: { color: [255,255,255,200], width: 1.2 }
+        })
+      };
+    });
+
+    return new UniqueValueRenderer({
+      valueExpression: arcLines.join('\n'),
+      uniqueValueInfos: infos
+    });
+  }
+
+  // SVI class-breaks renderer (census tracts colored by RPL_THEMES)
+  function buildSviRenderer() {
+    var breaks = [
+      [0, 0.25, '#fef9c3'],
+      [0.25, 0.5, '#fde68a'],
+      [0.5, 0.75, '#fb923c'],
+      [0.75, 1.01, '#dc2626']
+    ];
+    return new ClassBreaksRenderer({
+      field: 'RPL_THEMES',
+      classBreakInfos: breaks.map(function(b) {
+        return { minValue: b[0], maxValue: b[1],
+          symbol: new SimpleFillSymbol({ color: b[2], outline: { color: [255,255,255,60], width: 0.3 } }),
+          label: b[0] + '–' + b[1]
+        };
+      })
+    });
+  }
+
+  // NRI class-breaks renderer (counties colored by RISK_SCORE)
+  function buildNriRenderer() {
+    var breaks = [
+      [0, 20, '#dbeafe'],
+      [20, 40, '#93c5fd'],
+      [40, 60, '#6366f1'],
+      [60, 80, '#4338ca'],
+      [80, 200, '#1e1b4b']
+    ];
+    return new ClassBreaksRenderer({
+      field: 'RISK_SCORE',
+      classBreakInfos: breaks.map(function(b) {
+        return { minValue: b[0], maxValue: b[1],
+          symbol: new SimpleFillSymbol({ color: b[2], outline: { color: [255,255,255,60], width: 0.3 } }),
+          label: b[0] + '–' + b[1]
+        };
+      })
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // KPI BAR
+  // ═══════════════════════════════════════════════════════════
+  // Collapse categories per MERGE_INTO rules → [{label, values[]}]
+  // Fully case-insensitive: normalizes both source AND target keys
+  function mergedCategories(rawCats) {
+    var groupLabels = {};  // uppercased key → display label (canonical)
+    var groupVals   = {};  // uppercased key → [raw values]
+    var order       = [];  // uppercased keys in insertion order
+    // Build normalized MERGE_INTO lookup
+    var mergeUpper = {};
+    Object.keys(MERGE_INTO).forEach(function(k) {
+      mergeUpper[k.trim().toUpperCase()] = MERGE_INTO[k];
+    });
+    rawCats.forEach(function(cat) {
+      var catUp  = String(cat).trim().toUpperCase();
+      var target = mergeUpper[catUp] || cat;          // canonical label
+      var tgtUp  = String(target).trim().toUpperCase(); // normalized key
+      if (!groupVals[tgtUp]) {
+        groupVals[tgtUp]   = [];
+        groupLabels[tgtUp] = target;
+        order.push(tgtUp);
+      }
+      groupVals[tgtUp].push(cat);
+    });
+    return order.map(function(k) {
+      return { label: groupLabels[k], values: groupVals[k] };
+    });
+  }
+
+  function buildKpiBar(categories) {
+    kpiBar.querySelectorAll('.kpi-cat').forEach(function(el){ el.remove(); });
+    var merged = mergedCategories(categories);
+
+    merged.forEach(function(grp, i) {
+      var c = catColor(grp.label);
+      var tile = document.createElement('div');
+      tile.className = 'kpi-tile kpi-cat';
+      tile.style.setProperty('--kc', c);
+      tile.innerHTML =
+        '<div class="kpi-num-row"><div class="kpi-num dim" id="kpi-c' + i + '">—</div>' +
+        '<div class="kpi-pct dim" id="kpi-pct' + i + '">—%</div></div>' +
+        '<div class="kpi-lbl"><span class="kpi-dot" style="--kc:' + c + '"></span>' + grp.label + '</div>';
+      kpiBar.appendChild(tile);
+    });
+
+    // Extra KPI: Fire Stations (filtered)
+    var tStns = document.createElement('div');
+    tStns.className = 'kpi-tile kpi-cat';
+    tStns.style.setProperty('--kc','#fbbf24');
+    tStns.innerHTML = '<div class="kpi-num dim" id="kpi-stations">—</div><div class="kpi-lbl"><span style="display:inline-block;width:8px;height:8px;background:#111;border:1.5px solid #fbbf24;border-radius:1px;margin-right:4px;vertical-align:middle"></span>Fire Stations</div>';
+    kpiBar.appendChild(tStns);
+
+    // Dept KPI tiles — always in main bar, visible only when dept filter active
+    var tDepts = document.createElement('div');
+    tDepts.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDepts.style.cssText = '--kc:#fbbf24;display:none;border-left:2px solid rgba(251,191,36,0.3)';
+    tDepts.innerHTML = '<div class="kpi-num dim" id="dkpi-depts">—</div><div class="kpi-lbl">Departments</div>';
+    kpiBar.appendChild(tDepts);
+
+    var tDStations = document.createElement('div');
+    tDStations.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDStations.style.cssText = '--kc:#fbbf24;display:none';
+    tDStations.innerHTML = '<div class="kpi-num dim" id="dkpi-stations">—</div><div class="kpi-lbl">Stations</div>';
+    kpiBar.appendChild(tDStations);
+
+    var tDUnits = document.createElement('div');
+    tDUnits.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDUnits.style.cssText = '--kc:#fbbf24;display:none';
+    tDUnits.innerHTML = '<div class="kpi-num dim" id="dkpi-units">—</div><div class="kpi-lbl">Apparatus</div>';
+    kpiBar.appendChild(tDUnits);
+
+    var tDFF = document.createElement('div');
+    tDFF.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDFF.style.cssText = '--kc:#34d399;display:none';
+    tDFF.innerHTML = '<div class="kpi-num dim" id="dkpi-ff">—</div><div class="kpi-lbl">Firefighters</div>';
+    kpiBar.appendChild(tDFF);
+  }
+
+  function updateKpis() {
+    var where = buildWhere();
+    var layer = _flareLayer;
+    if (!layer) return;
+
+    // Query total first, then fire category queries so _kpiTotal is always available for %
+    layer.queryFeatureCount({ where: where }).then(function(total) {
+      _kpiTotal = total;
+      kpiTotal.textContent = total.toLocaleString();
+      kpiTotal.classList.remove('dim');
+
+      // Per merged category group — fires after total is known
+      var merged = mergedCategories(_categories);
+      merged.forEach(function(grp, i) {
+        var el = $('kpi-c' + i);
+        if (!el || !_fieldMap.masterLabel) return;
+        var vals = grp.values.map(function(v) {
+          return _fieldMap.masterLabel + "='" + v.replace(/'/g,"''") + "'";
+        }).join(' OR ');
+        var catClause = grp.values.length > 1 ? '(' + vals + ')' : vals;
+        var w = where === '1=1' ? catClause : where + ' AND ' + catClause;
+        var pctEl = $('kpi-pct' + i);
+        el.textContent = '—'; el.classList.add('dim');
+        if (pctEl) { pctEl.textContent = ''; pctEl.classList.add('dim'); }
+        layer.queryFeatureCount({ where: w }).then(function(n) {
+          el.textContent = n.toLocaleString(); el.classList.remove('dim');
+          if (pctEl) {
+            pctEl.textContent = total > 0 ? Math.round(n / total * 100) + '%' : '';
+            pctEl.classList.remove('dim');
+          }
+        }).catch(function(){});
+      });
+    }).catch(function(){});
+
+    // Divisions represented
+    var elS = $('kpi-states');
+    var divField = _fieldMap.division || _fieldMap.state;
+    if (elS && divField) {
+      layer.queryFeatures({ where: where, outFields: [divField],
+        returnDistinctValues: true, returnGeometry: false })
+        .then(function(r) {
+          elS.textContent = r.features.length; elS.classList.remove('dim');
+        }).catch(function(){});
+    }
+
+    // Chapters engaged
+    var elC = $('kpi-chaps');
+    if (elC && _fieldMap.chapter) {
+      layer.queryFeatures({ where: where, outFields: [_fieldMap.chapter],
+        returnDistinctValues: true, returnGeometry: false })
+        .then(function(r) {
+          elC.textContent = r.features.length; elC.classList.remove('dim');
+        }).catch(function(){});
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FILTERS
+  // ═══════════════════════════════════════════════════════════
+  function buildWhere() {
+    var parts = [];
+    FILTER_CHAIN.forEach(function(item) {
+      var v = _activeFilter[item.key]; var f = _fieldMap[item.key];
+      if (v && f) parts.push(f + "='" + v.replace(/'/g,"''") + "'");
+    });
+    // Category visibility (With / Without RC toggles)
+    if (_fieldMap.masterLabel && _categories.length && (!_showWith || !_showWithout)) {
+      var allowed = [];
+      mergedCategories(_categories).forEach(function(grp) {
+        var isWithout = grp.label.toUpperCase().indexOf('WITHOUT') !== -1;
+        if ((isWithout && _showWithout) || (!isWithout && _showWith))
+          allowed = allowed.concat(grp.values);
+      });
+      if (allowed.length === 0) {
+        parts.push('1=0');
+      } else {
+        var catClause = allowed.map(function(v) {
+          return _fieldMap.masterLabel + "='" + v.replace(/'/g,"''") + "'";
+        }).join(' OR ');
+        parts.push('(' + catClause + ')');
+      }
+    }
+    // Fire department text search
+    if (_deptSearch && _fieldMap.fireDept) {
+      parts.push(_fieldMap.fireDept + " LIKE '%" + _deptSearch.replace(/'/g,"''") + "%'");
+    }
+    return parts.length ? parts.join(' AND ') : '1=1';
+  }
+
+  // Build where using only filters UP TO (not including) chainIndex
+  function buildWhereUpTo(chainIndex) {
+    // RC-only clause up to chainIndex — does NOT include incident toggles or dept search
+    var keys = ['division','region','chapter'];
+    var fieldNames = { division:'Division', region:'Region', chapter:'Chapter' };
+    var parts = [];
+    for (var i = 0; i < chainIndex && i < keys.length; i++) {
+      var k = keys[i];
+      var v = _activeFilter[k];
+      var f = _fieldMap[k] || fieldNames[k];
+      if (v && f) parts.push(f + "='" + v.replace(/'/g,"''") + "'");
+    }
+    return parts.length ? parts.join(' AND ') : '1=1';
+  }
+
+  function buildRCWhere() {
+    // WHERE clause using RC_ fields for NERIS layers — same logic as buildWhere()
+    // but only the Division/Region/Chapter parts (no incident category or dept search)
+    var parts = [];
+    var keys = { division:'Division', region:'Region', chapter:'Chapter' };
+    Object.keys(keys).forEach(function(k) {
+      var v = _activeFilter[k];
+      if (v) parts.push(keys[k] + "='" + v.replace(/'/g,"''") + "'");
+    });
+    return parts.length ? parts.join(' AND ') : '1=1';
+  }
+
+  function updateStationKpi() {
+    var el = $('kpi-stations');
+    if (!el || !_stationsLayer) return;
+    var rcW = buildRCWhere();
+    var q = rcW === '1=1' ? BASE_BOUNDS : '(' + rcW + ') AND ' + BASE_BOUNDS;
+    _stationsLayer.queryFeatureCount({ where: q }).then(function(count) {
+      el.textContent = count.toLocaleString();
+      el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
+    }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
+  }
+
+
+  var BASE_BOUNDS = 'x > -125 AND x < -50 AND y > 15 AND y < 75';
+
+  function applyFilters() {
+    var w = buildWhere();
+    var rcW = buildRCWhere();
+    var rcWithBounds = rcW === '1=1' ? BASE_BOUNDS : '(' + rcW + ') AND ' + BASE_BOUNDS;
+    if (_flareLayer) _flareLayer.definitionExpression = w;
+    if (_stationsLayer) _stationsLayer.definitionExpression = rcWithBounds;
+    if (_deptsLayer)    _deptsLayer.definitionExpression    = rcWithBounds;
+    FILTER_CHAIN.forEach(function(item) {
+      if (_activeFilter[item.key]) item.sel.classList.add('has-value');
+      else item.sel.classList.remove('has-value');
+    });
+    updateKpis();
+    updateStationKpi();
+  }
+
+  function zoomToFiltered(chainIndex) {
+    if (!_view) return;
+    var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
+
+    // Use RC boundary polygon layer — always has geometry regardless of incident data
+    var boundaryId = _activeFilter.chapter ? 'chap' : _activeFilter.region ? 'reg' : 'div';
+    var bl = _boundaryLayers[boundaryId];
+    if (!bl) return;
+
+    var parts = [];
+    if (_activeFilter.division) parts.push("Division='" + _activeFilter.division.replace(/'/g,"''") + "'");
+    if (_activeFilter.region)   parts.push("Region='"   + _activeFilter.region.replace(/'/g,"''")   + "'");
+    if (_activeFilter.chapter)  parts.push("Chapter='"  + _activeFilter.chapter.replace(/'/g,"''")  + "'");
+    if (!parts.length) return;
+
+    bl.queryExtent({ where: parts.join(' AND ') }).then(function(r) {
+      if (!r || !r.extent) return;
+      _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
+           .catch(function(){});
+    }).catch(function(){});
+  }
+
+  function queryUnique(fieldName, whereClause) {
+    var w = whereClause || '1=1';
+    return _flareLayer.queryFeatures({
+      where: w, outFields: [fieldName],
+      returnDistinctValues: true, returnGeometry: false,
+      orderByFields: [fieldName + ' ASC']
+    }).then(function(r) {
+      return r.features.map(function(f){ return f.attributes[fieldName]; })
+               .filter(function(v){ return v!=null && String(v).trim()!==''; });
+    });
+  }
+
+  function fillSelect(sel, vals, label, key) {
+    sel.innerHTML = '';
+    var o = document.createElement('option'); o.value=''; o.textContent=label+' (All)';
+    sel.appendChild(o);
+    vals.forEach(function(v) {
+      var op=document.createElement('option'); op.value=v; op.textContent=v;
+      if (_activeFilter[key]===v) op.selected=true;
+      sel.appendChild(op);
+    });
+    sel.disabled = vals.length===0;
+  }
+
+  // Reload options for chain[startIndex..end] using filters above startIndex
+  function reloadChainFrom(startIndex) {
+    for (var i = startIndex; i < FILTER_CHAIN.length; i++) {
+      (function(item, idx) {
+        var f = _fieldMap[item.key];
+        if (!f) {
+          item.sel.innerHTML = '<option value="">— not in data —</option>';
+          return;
+        }
+        if (item.key === 'zip') zipRow.style.display = 'block';
+        var contextWhere = buildWhereUpTo(idx);
+        item.sel.disabled = true;
+        item.sel.innerHTML = '<option>Loading...</option>';
+        queryUnique(f, contextWhere)
+          .then(function(vals) { fillSelect(item.sel, vals, item.label, item.key); })
+          .catch(function() { item.sel.innerHTML = '<option value="">— error —</option>'; });
+      })(FILTER_CHAIN[i], i);
+    }
+  }
+
+  // Called when a chain item changes — reset downstream, reload, zoom
+  function onChainChange(changedIndex) {
+    var item = FILTER_CHAIN[changedIndex];
+    _activeFilter[item.key] = item.sel.value;
+
+    // Reset everything below
+    for (var i = changedIndex + 1; i < FILTER_CHAIN.length; i++) {
+      _activeFilter[FILTER_CHAIN[i].key] = '';
+      FILTER_CHAIN[i].sel.value = '';
+      FILTER_CHAIN[i].sel.classList.remove('has-value');
+    }
+
+    applyFilters();
+    reloadChainFrom(changedIndex + 1);
+
+    // Auto-show fire stations when any RC filter is selected
+    if (_stationsLayer) {
+      _stationsLayer.visible = true;
+      var cbSt = $('cb-stations');
+      if (cbSt) cbSt.checked = true;
+    }
+    updateStationKpi();
+
+    // Auto-enable the matching boundary layer when a filter is selected
+    // Auto-enable boundary layer — divisions and regions only, not chapters (too granular at national scale)
+    var bid = FILTER_TO_BOUNDARY[item.key];
+    if (bid && bid !== 'chap' && item.sel.value && _boundaryLayers[bid]) {
+      _boundaryLayers[bid].visible = true;
+      var cb = $('cb-' + bid);
+      if (cb) cb.checked = true;
+    }
+
+    // Zoom to selection, or zoom out to parent level when clearing
+    if (item.sel.value) {
+      zoomToFiltered(changedIndex);
+    } else if (changedIndex > 0) {
+      zoomToFiltered(changedIndex - 1);
+    } else {
+      _view.goTo({ extent:{xmin:-130,ymin:21,xmax:-61,ymax:54,spatialReference:{wkid:4326}} },
+        { duration:750, easing:'ease-in-out' });
+    }
+  }
+
+function loadAllFilters() {
+    _activeFilter = { division:'', region:'', chapter:'', county:'' };
+    reloadChainFrom(0);
+  }
+
+  btnClear.addEventListener('click', function() {
+    _activeFilter = { division:'', region:'', chapter:'', county:'' };
+    FILTER_CHAIN.forEach(function(item) { item.sel.value=''; item.sel.classList.remove('has-value'); });
+    _deptSearch = ''; var deptInp = $('station-search'); if (deptInp) { deptInp.value = ''; deptInp.dispatchEvent(new Event('input')); }
+    applyFilters();
+    reloadChainFrom(0);
+    // Zoom back to 48 states
+    _view.goTo({
+      extent: { xmin:-130, ymin:21, xmax:-61, ymax:54, spatialReference:{wkid:4326} }
+    }, { duration: 700 });
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // LAYER TOGGLES (incident layers)
+  // ═══════════════════════════════════════════════════════════
+  function buildIncidentToggles() {
+    var cbWith    = $('cb-with');
+    var cbWithout = $('cb-without');
+    if (cbWith) cbWith.addEventListener('change', function() {
+      _showWith = cbWith.checked; applyFilters(); updateKpis();
+    });
+    if (cbWithout) cbWithout.addEventListener('change', function() {
+      _showWithout = cbWithout.checked; applyFilters(); updateKpis();
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATION POPUP — three designs A / B / C
+  // ═══════════════════════════════════════════════════════════
+
+  function initPopStyleButtons() {}  // no-op — single design
+
+  /* ── Station popup ── */
+  function stPopupB(a, d) {
+    var addr = [a.address, [a.city, stFull(a.state)].filter(Boolean).join(', '), a.zip_code].filter(Boolean).join('  ');
+    var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif">';
+    // red header — centered
+    h += '<div style="background:#C41E3A;padding:16px 16px 14px;text-align:center">';
+    h += '<div style="font-size:16px;font-weight:800;color:#fff;line-height:1.3">' + (a.station_name || 'Fire Station') + '</div>';
+    if (a.unit_count) h += '<div style="margin-top:6px;font-size:13px;font-weight:700;color:#fff">' + a.unit_count + ' unit' + (a.unit_count==1?'':'s') + '</div>';
+    h += '</div>';
+    // address + type
+    h += '<div style="padding:10px 16px;border-bottom:1px solid #eee;font-size:12px;color:#333;text-align:center">';
+    if (addr) h += '<div>' + addr + '</div>';
+    if (a.station_type) h += '<div style="margin-top:3px;font-size:11px;color:#888">' + a.station_type + '</div>';
+    h += '</div>';
+    // RC section
+    h += deptDetail(d);
+    // IDs
+    h += '<div style="padding:8px 16px 12px;border-top:1px solid #eee">';
+    if (a.neris_id) h += '<div style="font-size:11px;color:#777">Station NERIS ID: <span style="font-family:monospace">' + a.neris_id + '</span></div>';
+    if (a.department_neris_id) h += '<div style="font-size:11px;color:#777;margin-top:2px">Department NERIS ID: <span style="font-family:monospace">' + a.department_neris_id + '</span></div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function deptDetail(d) {
+    var chapter  = (d && d.Chapter)  || '';
+    var region   = (d && d.Region)   || '';
+    var division = (d && d.Division) || '';
+    if (!chapter && !region && !division) {
+      return '<div style="padding:10px 16px;font-size:11px;color:#aaa;font-style:italic;text-align:center">Red Cross chapter info loading…</div>';
+    }
+    var h = '<div style="padding:12px 16px;background:#f5f5f5;border-top:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;text-align:center">';
+    h += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#555;margin-bottom:8px">Red Cross</div>';
+    if (chapter)  h += '<div style="font-size:13px;font-weight:700;color:#111;line-height:1.4">' + chapter + '</div>';
+    if (region)   h += '<div style="font-size:12px;color:#333;margin-top:2px">' + region + '</div>';
+    if (division) h += '<div style="font-size:11px;color:#555;margin-top:2px">' + division + '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  function renderStationPopup(a, d) {
+    $('sr-body').innerHTML = stPopupB(a, d);
+  }
+
+  function fetchDeptForStation(deptNerisId) {
+    if (!deptNerisId || !_stationsLayer) return;
+    var url = (typeof DEPARTMENTS_URL !== 'undefined' ? DEPARTMENTS_URL : '') +
+      '/query?where=neris_id%3D%27' + encodeURIComponent(deptNerisId) +
+      '%27&outFields=*&f=json';
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.features && data.features.length > 0) {
+          _lastDeptAttrs = data.features[0].attributes;
+          renderStationPopup(_lastStAttrs, _lastDeptAttrs);
+        }
+      })
+      .catch(function() {});
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // REFERENCE LAYERS (SVI / NRI)
+  // ═══════════════════════════════════════════════════════════
+  function initReferenceLayers(map) {
+    // SVI
+    _sviLayer = new FeatureLayer({
+      url: SVI_URL,
+      visible: false, opacity: 0.55,
+      minScale: 3000000,   // only loads/renders at state zoom or closer
+      renderer: buildSviRenderer(),
+      outFields: ['RPL_THEMES','RPL_THEME1','RPL_THEME2','RPL_THEME3','RPL_THEME4',
+                  'E_TOTPOP','COUNTY','STATE','FIPS'],
+      popupEnabled: true,
+      popupTemplate: {
+        title: 'Social Vulnerability Index',
+        outFields: ['*'],
+        content: function(feature) {
+          var a = feature.graphic.attributes;
+          var rpl = parseFloat(a.RPL_THEMES);
+          var pct = isNaN(rpl) ? null : Math.round(rpl * 100);
+          var color = rpl >= 0.75 ? '#dc2626' : rpl >= 0.5 ? '#f97316' : rpl >= 0.25 ? '#f59e0b' : '#22c55e';
+          var label = rpl >= 0.75 ? 'Very High Vulnerability' : rpl >= 0.5 ? 'High Vulnerability' : rpl >= 0.25 ? 'Moderate Vulnerability' : 'Low Vulnerability';
+          function scoreBar(val, max, color) {
+            var pct = Math.min(100, Math.round((val / max) * 100));
+            return '<div style="background:#f0f0f0;border-radius:3px;height:6px;margin-top:3px">' +
+                   '<div style="background:' + color + ';width:' + pct + '%;height:100%;border-radius:3px"></div></div>';
+          }
+          function themeRow(lbl, val, c) {
+            var p = isNaN(parseFloat(val)) ? null : Math.round(parseFloat(val)*100);
+            if (p === null) return '';
+            return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px">' +
+                   '<span style="color:#666">' + lbl + '</span><span style="font-weight:700;color:' + c + '">' + p + 'th</span></div>' +
+                   scoreBar(p, 100, c) + '</div>';
+          }
+          var html = '<div class="pop-card">';
+          html += '<div class="pop-header" style="background:' + color + '">';
+          html += '<div class="pop-icon">📊</div><div>';
+          html += '<div class="pop-title">' + (a.COUNTY ? a.COUNTY + ', ' + a.STATE : 'Census Tract') + '</div>';
+          html += '<div class="pop-subtitle">' + label + '</div>';
+          html += '</div></div>';
+          html += '<div class="pop-body">';
+          if (pct !== null) {
+            html += '<div style="text-align:center;padding:12px 0 8px">';
+            html += '<div style="font-size:42px;font-weight:800;color:' + color + ';line-height:1">' + pct + '</div>';
+            html += '<div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.8px;margin-top:3px">Overall Percentile</div>';
+            html += scoreBar(pct, 100, color);
+            html += '</div>';
+            html += '<div class="pop-section-title">Theme Scores</div>';
+            html += themeRow('Socioeconomic Status',        a.RPL_THEME1, '#6366f1');
+            html += themeRow('Household & Disability',      a.RPL_THEME2, '#f97316');
+            html += themeRow('Racial & Ethnic Minority',    a.RPL_THEME3, '#10b981');
+            html += themeRow('Housing Type & Transport',    a.RPL_THEME4, '#06b6d4');
+          }
+          if (a.E_TOTPOP) {
+            html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:11px;color:#999">';
+            html += 'Population: <strong style="color:#333">' + parseInt(a.E_TOTPOP).toLocaleString() + '</strong>';
+            html += '&nbsp;&nbsp;FIPS: <span style="color:#ccc">' + (a.FIPS||'—') + '</span></div>';
+          }
+          html += '</div></div>';
+          return html;
+        }
+      }
+    });
+
+    // NRI
+    _nriLayer = new FeatureLayer({
+      url: NRI_URL,
+      visible: false, opacity: 0.55,
+      minScale: 5000000,   // counties are larger — loads at slightly wider view
+      renderer: buildNriRenderer(),
+      outFields: ['RISK_SCORE','RISK_RATNG','EAL_SCORE','SOVI_SCORE','CRF_VALUE','COUNTY','STATE'],
+      popupEnabled: true,
+      popupTemplate: {
+        title: 'National Risk Index',
+        outFields: ['*'],
+        content: function(feature) {
+          var a = feature.graphic.attributes;
+          var score = parseFloat(a.RISK_SCORE);
+          var rating = (a.RISK_RATNG || '').trim();
+          var color = score >= 80 ? '#312e81' : score >= 60 ? '#4338ca' : score >= 40 ? '#6366f1' : score >= 20 ? '#93c5fd' : '#bfdbfe';
+          var textColor = score >= 40 ? '#fff' : '#1e3a5f';
+          function bar(val, max, c) {
+            var p = Math.min(100, Math.round((val / max) * 100));
+            return '<div style="background:#f0f0f0;border-radius:3px;height:6px;margin-top:3px">' +
+                   '<div style="background:' + c + ';width:' + p + '%;height:100%;border-radius:3px"></div></div>';
+          }
+          function metricRow(lbl, val, max, c) {
+            if (val === null || val === undefined || isNaN(parseFloat(val))) return '';
+            var n = parseFloat(val);
+            return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px">' +
+                   '<span style="color:#666">' + lbl + '</span>' +
+                   '<span style="font-weight:700;color:' + c + '">' + n.toFixed(1) + '</span></div>' +
+                   bar(n, max, c) + '</div>';
+          }
+          var html = '<div class="pop-card">';
+          html += '<div class="pop-header" style="background:' + color + '">';
+          html += '<div class="pop-icon">⚠️</div><div>';
+          html += '<div class="pop-title">' + (a.COUNTY ? a.COUNTY + ', ' + a.STATE : 'Census Tract') + '</div>';
+          html += '<div class="pop-subtitle">' + (rating || 'Risk Index Score') + '</div>';
+          html += '</div></div>';
+          html += '<div class="pop-body">';
+          if (!isNaN(score)) {
+            html += '<div style="text-align:center;padding:12px 0 8px">';
+            html += '<div style="font-size:42px;font-weight:800;color:' + (score >= 40 ? color : '#312e81') + ';line-height:1">' + score.toFixed(1) + '</div>';
+            html += '<div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.8px;margin-top:3px">Composite Risk Score (0–100)</div>';
+            html += bar(score, 100, color);
+            html += '</div>';
+          }
+          html += '<div class="pop-section-title">Components</div>';
+          html += metricRow('Expected Annual Loss',     a.EAL_SCORE,  100, '#dc2626');
+          html += metricRow('Social Vulnerability',     a.SOVI_SCORE, 100, '#f97316');
+          html += metricRow('Community Resilience',     a.CRF_VALUE,  100, '#22c55e');
+          html += '</div></div>';
+          return html;
+        }
+      }
+    });
+
+    // Boundary layers go beneath incident data
+    BOUNDARY_CONFIGS.forEach(function(cfg) {
+      var lbl = {
+        type: 'text',
+        color: cfg.color,
+        haloColor: [255,255,255,220],
+        haloSize: 2,
+        font: { size: 10, weight: 'bold', family: 'Avenir Next' }
+      };
+      var bl = new FeatureLayer({
+        url: ARC_GEO_BASE + '/' + cfg.layerId,
+        visible: true,
+        opacity: 0.9,
+        renderer: new UniqueValueRenderer({
+          field: cfg.field,
+          defaultSymbol: new SimpleFillSymbol({
+            color: [0,0,0,0],
+            outline: { color: cfg.color, width: cfg.width, style: 'solid' }
+          })
+        }),
+        labelingInfo: [{
+          labelExpressionInfo: { expression: '$feature.' + cfg.field },
+          symbol: lbl,
+          minScale: cfg.labelMinScale,
+          maxScale: cfg.labelMaxScale,
+          labelPlacement: 'always-horizontal',
+          where: '1=1'
+        }],
+        labelsVisible: true,
+        popupEnabled: false
+      });
+      map.add(bl, 0); // insert below everything else
+      _boundaryLayers[cfg.id] = bl;
+      (function(layer, checkboxId) {
+        var cb = $(checkboxId);
+        if (cb) cb.addEventListener('change', function() { layer.visible = cb.checked; });
+      })(bl, 'cb-' + cfg.id);
+    });
+
+    // Fire Stations — AGOL Feature Layer (replaces CSVLayer)
+    _stationsLayer = new FeatureLayer({
+      url: STATIONS_URL,
+      visible: false,
+      minScale: 0,
+      title: 'Fire Stations',
+      outFields: ['*'],
+      definitionExpression: 'x > -125 AND x < -50 AND y > 15 AND y < 75',
+      renderer: {
+        type: 'simple',
+        symbol: new PictureMarkerSymbol({
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">' +
+            '<rect x="2" y="2" width="20" height="20" rx="2" fill="#111827" stroke="#fbbf24" stroke-width="1.5"/>' +
+            '<rect x="6" y="10" width="3" height="10" fill="#fbbf24"/>' +
+            '<rect x="10.5" y="10" width="3" height="10" fill="#fbbf24"/>' +
+            '<rect x="15" y="10" width="3" height="10" fill="#fbbf24"/>' +
+            '<rect x="5" y="8" width="14" height="2.5" fill="#fbbf24"/>' +
+            '<polygon points="12,1 22,8 2,8" fill="#fbbf24"/>' +
+            '</svg>'
+          ),
+          width: 18, height: 18
+        })
+      },
+      popupEnabled: false
+    });
+
+    // Departments layer — HQ points
+    _deptsLayer = new FeatureLayer({
+      url: DEPARTMENTS_URL,
+      visible: false,
+      title: 'Fire Departments',
+      outFields: ['*'],
+      definitionExpression: 'x > -125 AND x < -50 AND y > 15 AND y < 75',
+      renderer: {
+        type: 'simple',
+        symbol: new PictureMarkerSymbol({
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">' +
+            '<circle cx="12" cy="12" r="11" fill="#1e3a5f" stroke="#ffffff" stroke-width="1.5"/>' +
+            '<rect x="10" y="5" width="4" height="14" fill="#ffffff"/>' +
+            '<rect x="5" y="10" width="14" height="4" fill="#ffffff"/>' +
+            '</svg>'
+          ),
+          width: 18, height: 18
+        })
+      },
+      popupEnabled: false
+    });
+
+    map.addMany([_sviLayer, _nriLayer, _stationsLayer, _deptsLayer]);
+
+    $('cb-depts').addEventListener('change', function() { _deptsLayer.visible = $('cb-depts').checked; });
+    $('cb-svi').addEventListener('change', function() { _sviLayer.visible = $('cb-svi').checked; });
+    $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
+
+    // Dept list — queried from Departments FeatureLayer on first keystroke
+    var _stationDataReady = false;   // true once dept list is loaded
+
+    $('cb-stations').addEventListener('change', function() {
+      _stationsLayer.visible = $('cb-stations').checked;
+    });
+
+    // Department typeahead — multi-select with chips
+    var _stationTimer;
+    var _deptMinStations = 0;
+    var _deptMinFF       = 0;
+    var inp        = $('station-search');
+    var dd         = $('station-dropdown');
+    var chipsEl    = $('dept-chips');
+    var _selectedDepts = [];   // array of department_name strings
+
+    // Wire clear button
+    var clearBtn = $('station-search-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        inp.value = '';
+        clearBtn.style.display = 'none';
+        dd.style.display = 'none';
+        _selectedDepts = [];
+        renderChips();
+        applyDeptFilter();
+      });
+    }
+    // Show/hide clear button as user types
+    inp.addEventListener('input', function() {
+      if (clearBtn) clearBtn.style.display = inp.value.trim() ? '' : 'none';
+    }, true);
+
+    // Department search — live query per keystroke against Departments FeatureLayer
+    var _deptList = [];   // cached results for last query
+    var _deptQueryLayer = new FeatureLayer({ url: DEPARTMENTS_URL });
+    function buildDeptList(callback, searchTerm) {
+      // Live search: query for matching depts on every keystroke
+      var where = searchTerm
+        ? "UPPER(name) LIKE UPPER('%" + searchTerm.replace(/'/g,"''") + "%')"
+        : "1=1";
+      _deptQueryLayer.queryFeatures({
+        where: where,
+        outFields: ['name','state','station_count','firefighters_career_ft','firefighters_career_pt','firefighters_volunteer'],
+        returnGeometry: false,
+        num: 50,
+        orderByFields: ['name ASC']
+      }).then(function(result) {
+        _deptList = result.features.map(function(f) {
+          var a = f.attributes;
+          return {
+            department_name: a.name || '',
+            state: a.state || '',
+            count: a.station_count || 0,
+            ff: (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0)
+          };
+        }).filter(function(d){ return d.department_name; });
+        _stationDataReady = true;
+        if (callback) callback();
+      }).catch(function(e){ console.warn('Dept query failed:', e); });
+    }
+
+    function zoomToSelectedDepts() {
+      if (!_selectedDepts.length || !_view) return;
+      // Use queryExtent on the stations FeatureLayer — works natively, no CSV needed
+      var clauses = _selectedDepts.map(function(n){
+        return "department_name = '" + n.replace(/'/g,"''") + "'";
+      });
+      _stationsLayer.queryExtent({ where: clauses.join(' OR ') }).then(function(result) {
+        if (result && result.extent) {
+          _view.goTo(result.extent.expand(1.15), { animate: false });
+        }
+      }).catch(function(e){ console.warn('queryExtent failed:', e); });
+    }
+
+    function updateDeptKpiBar() {
+      var tiles = document.querySelectorAll('.kpi-dept-tile');
+      if (!_selectedDepts.length) {
+        tiles.forEach(function(t){ t.style.display = 'none'; });
+        return;
+      }
+      tiles.forEach(function(t){ t.style.display = ''; });
+      // Query dept layer for selected depts
+      var clauses = _selectedDepts.map(function(n){
+        return "name = '" + n.replace(/'/g,"''") + "'";
+      });
+      var deptLayer = new FeatureLayer({ url: DEPARTMENTS_URL });
+      deptLayer.queryFeatures({
+        where: clauses.join(' OR '),
+        outFields: ['station_count','unit_count','population_protected',
+                    'firefighters_career_ft','firefighters_career_pt','firefighters_volunteer'],
+        returnGeometry: false, num: 2000
+      }).then(function(r) {
+        var totStations=0, totUnits=0, totFF=0;
+        r.features.forEach(function(f) {
+          var a = f.attributes;
+          totStations += (a.station_count || 0);
+          totUnits    += (a.unit_count    || 0);
+          totFF       += (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0);
+        });
+        function setKpi(id, val) {
+          var el = $(id); if (!el) return;
+          el.textContent = val > 0 ? val.toLocaleString() : '—';
+          el.className = 'kpi-num' + (val === 0 ? ' dim' : '');
+        }
+        setKpi('dkpi-depts',    _selectedDepts.length);
+        setKpi('dkpi-stations', totStations);
+        setKpi('dkpi-units',    totUnits);
+        setKpi('dkpi-ff',       totFF);
+      });
+    }
+
+    function applyDeptFilter() {
+      var rcW = buildRCWhere();
+      if (!_selectedDepts.length) {
+        _stationsLayer.definitionExpression = rcW === '1=1' ? BASE_BOUNDS : '(' + rcW + ') AND ' + BASE_BOUNDS;
+        updateStationKpi();
+        return;
+      }
+      var deptClauses = _selectedDepts.map(function(n){
+        return "department_name = '" + n.replace(/'/g,"''") + "'";
+      });
+      var combined = rcW === '1=1'
+        ? deptClauses.join(' OR ')
+        : '(' + deptClauses.join(' OR ') + ') AND ' + rcW;
+      _stationsLayer.definitionExpression = '(' + combined + ') AND ' + BASE_BOUNDS;
+      _stationsLayer.visible = true;
+      var cb = $('cb-stations');
+      if (cb) cb.checked = true;
+      updateStationKpi();
+      updateDeptKpiBar();
+      // Small delay so layer registers new definitionExpression before queryExtent
+      setTimeout(zoomToSelectedDepts, 200);
+    }
+
+    function renderChips() {
+      chipsEl.innerHTML = '';
+      if (!_selectedDepts.length) { chipsEl.style.display = 'none'; return; }
+      chipsEl.style.display = 'flex';
+      _selectedDepts.forEach(function(name) {
+        var chip = document.createElement('div');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:3px 8px;' +
+          'background:#fdf5f6;border:1px solid #C41E3A;border-radius:12px;font-size:11px;' +
+          'color:#C41E3A;font-weight:600;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis';
+        chip.title = name;
+        chip.innerHTML = '<span style="overflow:hidden;text-overflow:ellipsis">' + name + '</span>' +
+          '<span style="cursor:pointer;font-size:13px;line-height:1;margin-left:2px;flex-shrink:0">×</span>';
+        chip.querySelector('span:last-child').addEventListener('click', function() {
+          _selectedDepts = _selectedDepts.filter(function(n){ return n !== name; });
+          renderChips();
+          applyDeptFilter();
+        });
+        chipsEl.appendChild(chip);
+      });
+      // Clear all button when >1 dept selected
+      if (_selectedDepts.length > 1) {
+        var clr = document.createElement('div');
+        clr.style.cssText = 'padding:3px 8px;border:1px solid #aaa;border-radius:12px;font-size:11px;' +
+          'color:#666;cursor:pointer;white-space:nowrap';
+        clr.textContent = 'Clear all';
+        clr.addEventListener('click', function() {
+          _selectedDepts = [];
+          renderChips();
+          applyDeptFilter();
+          updateDeptKpiBar();
+        });
+        chipsEl.appendChild(clr);
+      }
+    }
+
+    var _lastMatches = [];   // keep current match list for re-render after toggle
+
+    function showDeptDropdown(matches, keepOpen) {
+      if (matches) _lastMatches = matches;
+      dd.innerHTML = '';
+
+      // ── Done button at top ──────────────────────────────────
+      var doneRow = document.createElement('div');
+      doneRow.style.cssText = 'padding:6px 10px;border-bottom:2px solid #e4e4e4;display:flex;' +
+        'align-items:center;justify-content:space-between;background:#fafafa;position:sticky;top:0;z-index:1';
+      var doneLabel = _selectedDepts.length
+        ? '<span style="font-size:11px;color:#C41E3A;font-weight:600">' + _selectedDepts.length + ' selected</span>'
+        : '<span style="font-size:11px;color:#aaa">Select departments</span>';
+      doneRow.innerHTML = doneLabel +
+        '<button style="padding:3px 10px;background:#C41E3A;color:#fff;border:none;border-radius:4px;' +
+        'font-size:11px;font-weight:600;cursor:pointer;line-height:1.4">Done</button>';
+      doneRow.querySelector('button').addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        dd.style.display = 'none';
+        inp.value = '';
+        inp.blur();
+      });
+      dd.appendChild(doneRow);
+
+      if (!_lastMatches.length) {
+        var none = document.createElement('div');
+        none.style.cssText = 'padding:8px 10px;font-size:12px;color:#aaa';
+        none.textContent = 'No results';
+        dd.appendChild(none);
+        dd.style.display = '';
+        return;
+      }
+
+      _lastMatches.slice(0, 50).forEach(function(d) {
+        var already = _selectedDepts.indexOf(d.department_name) !== -1;
+        var item = document.createElement('div');
+        item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;' +
+          'line-height:1.35;display:flex;align-items:flex-start;gap:8px' +
+          (already ? ';background:#fdf5f6' : '');
+        // Checkbox-style indicator
+        var chk = '<span style="flex-shrink:0;margin-top:1px;width:14px;height:14px;border-radius:3px;border:1.5px solid ' +
+          (already ? '#C41E3A' : '#ccc') + ';background:' + (already ? '#C41E3A' : '#fff') +
+          ';display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff">' +
+          (already ? '✓' : '') + '</span>';
+        item.innerHTML = chk +
+          '<div><div style="font-weight:600;color:' + (already ? '#C41E3A' : '#222') + '">' +
+          d.department_name + '</div>' +
+          '<div style="font-size:11px;color:#888">' + d.state + ' &nbsp;·&nbsp; ' +
+          d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div></div>';
+        item.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          console.log('[SELECT] dept clicked:', d.department_name);
+          if (!already) {
+            _selectedDepts.push(d.department_name);
+          } else {
+            _selectedDepts = _selectedDepts.filter(function(n){ return n !== d.department_name; });
+          }
+          console.log('[SELECT] _selectedDepts now:', JSON.stringify(_selectedDepts));
+          renderChips();
+          applyDeptFilter();
+          showDeptDropdown(null, true);
+        });
+        item.addEventListener('mouseover', function(){ item.style.background='#fdf5f6'; });
+        item.addEventListener('mouseout',  function(){ item.style.background = already ? '#fdf5f6' : ''; });
+        dd.appendChild(item);
+      });
+      dd.style.display = '';
+    }
+
+    function getFilteredDeptList() {
+      return _deptList.filter(function(d) {
+        return d.count >= _deptMinStations && d.ff >= _deptMinFF;
+      });
+    }
+
+    $('dept-min-stations').addEventListener('change', function() {
+      _deptMinStations = parseInt(this.value) || 0;
+      var q = inp.value.trim().toLowerCase();
+      if (q && _deptList.length) {
+        var filtered = getFilteredDeptList().filter(function(d){
+          return d.department_name.toLowerCase().indexOf(q) !== -1;
+        });
+        showDeptDropdown(filtered);
+      }
+    });
+
+    $('dept-min-ff').addEventListener('change', function() {
+      _deptMinFF = parseInt(this.value) || 0;
+      var q = inp.value.trim().toLowerCase();
+      if (q && _deptList.length) {
+        var filtered = getFilteredDeptList().filter(function(d){
+          return d.department_name.toLowerCase().indexOf(q) !== -1;
+        });
+        showDeptDropdown(filtered);
+      }
+    });
+
+    inp.addEventListener('input', function() {
+      clearTimeout(_stationTimer);
+      var q = inp.value.trim().toLowerCase();
+      if (!q) { dd.style.display='none'; _lastMatches=[]; return; }
+      _stationTimer = setTimeout(function() {
+        buildDeptList(function() {
+          var filtered = getFilteredDeptList().filter(function(d){
+            return d.department_name.toLowerCase().indexOf(q) !== -1;
+          });
+          showDeptDropdown(filtered);
+        }, q);
+      }, 300);
+    });
+
+    // Only close on blur if clicking outside the dropdown entirely
+    inp.addEventListener('blur', function() {
+      setTimeout(function() {
+        if (!dd.matches(':hover') && document.activeElement !== inp) {
+          dd.style.display = 'none';
+        }
+      }, 200);
+    });
+    inp.addEventListener('focus', function(){ if (_lastMatches.length) showDeptDropdown(null, true); });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MAIN INIT
+  // ═══════════════════════════════════════════════════════════
+  function initApp() {
+    setMsg('Loading layer...');
+
+    var map  = new Map({ basemap: 'gray-vector' });
+    _view = new MapView({
+      container: 'viewDiv', map: map,
+      extent: {
+        xmin: -122.0, ymin: 25.5, xmax: -69.0, ymax: 48.5,
+        spatialReference: { wkid: 4326 }
+      }
+    });
+
+    _view.ui.add(new Home({ view:_view }), 'top-left');
+    _view.ui.add(new ScaleBar({ view:_view, unit:'dual' }), 'bottom-right');
+    _view.popup.autoOpenEnabled = false;
+
+    // ── Click → right sidebar feature info ──────────────────────
+    _view.on('click', function(evt) {
+      _view.hitTest(evt).then(function(response) {
+        // Check for FLARE incident first
+        var hit = response.results.find(function(r) {
+          return r.graphic && r.graphic.layer === _flareLayer;
+        });
+        if (hit) {
+          var html = buildPopupContent({ graphic: hit.graphic });
+          $('sr-body').innerHTML = html;
+          $('sidebar-right').classList.add('open');
+          return;
+        }
+        // Check for department HQ
+        var deptHit = response.results.find(function(r) {
+          return r.graphic && r.graphic.layer === _deptsLayer;
+        });
+        if (deptHit) {
+          var a = deptHit.graphic.attributes;
+          var services = (a.fire_services || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          var ems = (a.ems_services || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          var inv = (a.investigation_services || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          var totalFF = (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0);
+          var hasStaff = totalFF > 0 || a.population_protected > 0;
+
+          var h = '<div style="padding:0 0 12px">';
+          // Header
+          h += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">';
+          h += '<div style="width:32px;height:32px;background:#C41E3A;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:800">🔥</div>';
+          h += '<div><div style="font-size:14px;font-weight:800;color:#111;line-height:1.2">' + (a.name || 'Fire Department') + '</div>';
+          h += '<div style="font-size:11px;color:#888;margin-top:2px">' + (a.city||'') + (a.state ? ', '+a.state : '') + (a.department_type ? ' &nbsp;·&nbsp; '+a.department_type : '') + '</div></div></div>';
+
+          // Headline stats
+          h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">';
+          function dkpi(label, val, color) {
+            if (!val && val !== 0) return '';
+            return '<div style="background:#f8f8f8;border-radius:6px;padding:8px 10px;text-align:center">' +
+              '<div style="font-size:18px;font-weight:800;color:'+(color||'#111')+'">' + val.toLocaleString() + '</div>' +
+              '<div style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-top:2px">' + label + '</div></div>';
+          }
+          if (a.station_count) h += dkpi('Stations', a.station_count, '#C41E3A');
+          if (a.unit_count) h += dkpi('Apparatus', a.unit_count, '#f97316');
+          if (a.population_protected) h += dkpi('Population', a.population_protected, '#2D6DB4');
+          if (totalFF) h += dkpi('Firefighters', totalFF, '#16a34a');
+          h += '</div>';
+
+          // Staffing breakdown
+          if (hasStaff && totalFF > 0) {
+            h += '<div style="margin-bottom:10px;padding:8px 10px;background:#f8f8f8;border-radius:6px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:6px">Staffing</div>';
+            function staffRow(label, ft, pt, vol) {
+              if (!ft && !pt && !vol) return '';
+              var r = '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">';
+              r += '<span style="color:#555">' + label + '</span>';
+              r += '<span style="font-weight:600">';
+              var parts = [];
+              if (ft) parts.push(ft + ' career FT');
+              if (pt) parts.push(pt + ' PT');
+              if (vol) parts.push(vol + ' volunteer');
+              r += parts.join(' · ') + '</span></div>';
+              return r;
+            }
+            h += staffRow('Firefighters', a.firefighters_career_ft, a.firefighters_career_pt, a.firefighters_volunteer);
+            h += staffRow('EMS Only', a.ems_only_career_ft, a.ems_only_career_pt, a.ems_only_volunteer);
+            h += '</div>';
+          }
+
+          // Services — collapsed toggle
+          h += '<details style="margin-bottom:10px">' +
+               '<summary style="cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;list-style:none;display:flex;align-items:center;gap:5px;padding:5px 0;border-top:1px solid #f0f0f0">' +
+               '<span style="font-size:11px">▸</span> Services &amp; Capabilities</summary>' +
+               '<div style="padding-top:8px">' +
+               '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:3px">Fire Services</div>' +
+               serviceGrid(a.fire_services, ALL_FIRE_SERVICES, '#C41E3A', '#fdf5f6', '#f5c6c6') +
+               '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:6px 0 3px">EMS Services</div>' +
+               serviceGrid(a.ems_services, ALL_EMS_SERVICES, '#2D6DB4', '#eff6ff', '#bfdbfe') +
+               '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin:6px 0 3px">Investigation</div>' +
+               serviceGrid(a.investigation_services, ALL_INV_SERVICES, '#16a34a', '#f0fdf4', '#bbf7d0') +
+               '</div></details>';
+
+          // Accreditation + shifts
+          var accrBits = [];
+          if (a.assessment_caas_accredited) accrBits.push('CAAS Accredited');
+          if (a.assessment_cpse_accredited) accrBits.push('CPSE Accredited');
+          if (accrBits.length || a.shift_count) {
+            h += '<div style="margin-bottom:10px;font-size:11px;color:#555">';
+            if (accrBits.length) h += '<div style="margin-bottom:3px">✓ ' + accrBits.join(' &nbsp;·&nbsp; ✓ ') + '</div>';
+            if (a.shift_count) h += '<div>' + a.shift_count + ' shift' + (a.shift_count!==1?'s':'') + (a.shift_duration ? ', ' + a.shift_duration + 'hr' : '') + '</div>';
+            h += '</div>';
+          }
+
+          // Red Cross hierarchy
+          if (a.Chapter || a.Region || a.Division) {
+            h += '<div style="background:#fdf5f6;border:1px solid #f5c6c6;border-radius:6px;padding:8px 10px;margin-bottom:10px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#C41E3A;margin-bottom:6px">American Red Cross</div>';
+            function rcRow(label, val) {
+              if (!val) return '';
+              return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid #fce7e7">' +
+                '<span style="color:#888;flex-shrink:0;margin-right:10px">' + label + '</span>' +
+                '<span style="font-weight:600;color:#111;text-align:right">' + val + '</span></div>';
+            }
+            h += rcRow('Chapter', a.Chapter);
+            h += rcRow('Region',  a.Region);
+            h += rcRow('Division', a.Division);
+            h += '</div>';
+          }
+
+          // Website + address
+          h += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:4px;font-size:11px;color:#888">';
+          if (a.address_line_1) h += '<div>' + a.address_line_1 + (a.city ? ', ' + a.city : '') + (a.state ? ' ' + a.state : '') + (a.zip_code ? ' ' + a.zip_code : '') + '</div>';
+          if (a.website) h += '<div style="margin-top:4px"><a href="' + a.website + '" target="_blank" style="color:#C41E3A;text-decoration:none">' + a.website.replace('https://','').replace('http://','').replace(/\/$/,'') + ' →</a></div>';
+          if (a.neris_id) h += '<div style="margin-top:4px;font-family:monospace;font-size:10px;color:#bbb">' + a.neris_id + '</div>';
+          h += '</div></div>';
+
+          $('sr-body').innerHTML = h;
+          $('sidebar-right').classList.add('open');
+          return;
+        }
+
+        // Check for fire station
+        var stHit = response.results.find(function(r) {
+          return r.graphic && r.graphic.layer === _stationsLayer;
+        });
+        if (stHit) {
+          _lastStAttrs  = stHit.graphic.attributes;
+          _lastDeptAttrs = null;
+          renderStationPopup(_lastStAttrs, null);
+          $('sidebar-right').classList.add('open');
+          fetchDeptForStation(_lastStAttrs.department_neris_id);
+        }
+      });
+    });
+
+    // ── Red Cross Geography accordion ────────────────────────────
+    // ── Dept search button in station popup ──────────────────────
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.classList.contains('dept-search-btn')) {
+        var dept = e.target.getAttribute('data-dept');
+        if (dept) {
+          var inp = $('station-search');
+          inp.value = dept;
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    });
+
+    // ── Map Layers accordion ─────────────────────────────────────
+    $('acc-layers-btn').addEventListener('click', function() {
+      var body  = $('acc-layers-body');
+      var arrow = $('acc-layers-arrow');
+      var open  = body.style.display !== 'none';
+      body.style.display  = open ? 'none' : '';
+      arrow.textContent   = open ? '▸' : '▾';
+    });
+
+    // ── Left sidebar toggle ──────────────────────────────────────
+    $('left-tab').addEventListener('click', function() {
+      var wrap = $('left-wrap');
+      wrap.classList.toggle('collapsed');
+      $('left-tab').innerHTML = wrap.classList.contains('collapsed') ? '&#8250;' : '&#8249;';
+    });
+    // ── Right sidebar close ──────────────────────────────────────
+    $('close-right').addEventListener('click', function() {
+      $('sidebar-right').classList.remove('open');
+    });
+
+    // Show "zoom in" badge on SVI/NRI toggles when layer is on but out of scale range
+    reactiveUtils.watch(
+      function() { return _view.scale; },
+      function(scale) {
+        var sviBadge = $('svi-zoom-badge');
+        var nriBadge = $('nri-zoom-badge');
+        if (sviBadge) sviBadge.style.display = (_sviLayer && _sviLayer.visible && scale > 3000000) ? 'inline' : 'none';
+        if (nriBadge) nriBadge.style.display = (_nriLayer && _nriLayer.visible && scale > 5000000) ? 'inline' : 'none';
+        var stBadge = $('stations-zoom-badge');
+        if (stBadge) stBadge.style.display = 'none';
+      }
+    );
+    $('cb-svi').addEventListener('change', function() {
+      var badge = $('svi-zoom-badge');
+      if (badge) badge.style.display = ($('cb-svi').checked && _view.scale > 3000000) ? 'inline' : 'none';
+    });
+    $('cb-nri').addEventListener('change', function() {
+      var badge = $('nri-zoom-badge');
+      if (badge) badge.style.display = ($('cb-nri').checked && _view.scale > 5000000) ? 'inline' : 'none';
+    });
+    _view.ui.add(new Expand({
+      view:_view, expandTooltip:'Legend',
+      expandIconClass:'esri-icon-legend',
+      content: new Legend({ view:_view })
+    }), 'top-right');
+
+    // Wire A/B/C popup style buttons
+    initPopStyleButtons();
+
+    // Init reference layers first (behind incident data)
+    initReferenceLayers(map);
+
+    // Load FLARE layer — outFields:['*'] required so hitTest graphics have all attributes
+    var fl = new FeatureLayer({
+      portalItem: { id: FLARE_ITEM, portal: { url: PORTAL } },
+      outFields: ['*']
+    });
+
+    fl.load().then(function() {
+      _flareLayer = fl;
+      setMsg('Analyzing fields...');
+
+      // Resolve field map
+      Object.keys(FIELDS).forEach(function(k) {
+        _fieldMap[k] = resolveField(fl.fields, k);
+      });
+
+      // Console dump — full field list
+      console.log('=== FLARE Fields ===');
+      fl.fields.forEach(function(f) {
+        console.log('  %-30s %-15s alias: %s'.replace('%s',f.alias)
+          .replace('%s',f.type).replace('%s',f.name));
+      });
+      console.log('Field map:', _fieldMap);
+
+      // Disable native popup — feature info shown in right sidebar instead
+      fl.popupEnabled = false;
+
+      // Build renderer from master label categories
+      var labelField = _fieldMap.masterLabel;
+      var afterRenderer = function() {
+        map.add(fl);
+        buildIncidentToggles();
+        loadAllFilters();
+        updateKpis();
+        // Prime the incident layer: briefly enable both, then restore to off
+        // This ensures the layer initializes correctly so toggling works on first use
+        _showWith = true; _showWithout = true;
+        applyFilters();
+        setTimeout(function() {
+          _showWith = false; _showWithout = false;
+          var cbWith = $('cb-with'); var cbWithout = $('cb-without');
+          if (cbWith) cbWith.checked = false;
+          if (cbWithout) cbWithout.checked = false;
+          applyFilters();
+        }, 500);
+        _view.when(function() {
+          hideLoad();
+          // Extent set at view creation — no auto-zoom
+        });
+      };
+
+      if (labelField) {
+        queryUnique(labelField).then(function(cats) {
+          _categories = cats;
+          fl.renderer = buildRenderer(labelField, cats);
+          buildKpiBar(cats);
+          setMsg('Loading map...');
+          afterRenderer();
+        }).catch(function() { afterRenderer(); });
+      } else {
+        afterRenderer();
+      }
+
+    }).catch(function(err) {
+      console.error('Layer load failed:', err);
+      setMsg('Layer failed to load — see console.');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AUTH
+  // ═══════════════════════════════════════════════════════════
+  wireChain();
+
+  initApp();
+
+});
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════
+// MOBILE TRAY — layer-grid wired to FLARE layers
+// ═══════════════════════════════════════════════════
+
+var LAYER_COLORS = ['#C41E3A','#00d4ff','#ff6b35','#a855f7','#f59e0b'];
+var LAYER_NAMES  = ['INCIDENTS','BOUNDARIES','FIELD ASSETS','RISK DATA','TOOLS'];
+
+var CONUS = { xmin:-130, ymin:21, xmax:-61, ymax:54, spatialReference:{wkid:4326} };
+
+// Each layer: 6 content slots (positions 0,1,2,3,5,7 in the 3x3)
+// action: function to call on tap
+// label/sub: button text
+// toggle: optional cb id to reflect state
+var LAYERS = [
+  // 0 — INCIDENTS (red)
+  [
+    { main:'WITH RC',   sub:'show',   action: function(){ toggleCb('cb-with');    }, toggle:'cb-with'    },
+    { main:'W/O RC',    sub:'show',   action: function(){ toggleCb('cb-without'); }, toggle:'cb-without' },
+    { main:'SHOW ALL',  sub:'both on',action: function(){ setCb('cb-with',true);  setCb('cb-without',true);  } },
+    { main:'HIDE ALL',  sub:'clear',  action: function(){ setCb('cb-with',false); setCb('cb-without',false); } },
+    { main:'ZOOM US',   sub:'conus',  action: function(){ if(_view) _view.goTo({extent:CONUS},{duration:750}); } },
+    { main:'INFO',      sub:'on tap', action: function(){ toast('Tap any incident on the map'); } },
+  ],
+  // 1 — BOUNDARIES (cyan)
+  [
+    { main:'DIVISION',  sub:'overlay', action: function(){ toggleCb('cb-div');  }, toggle:'cb-div'  },
+    { main:'REGION',    sub:'overlay', action: function(){ toggleCb('cb-reg');  }, toggle:'cb-reg'  },
+    { main:'CHAPTER',   sub:'overlay', action: function(){ toggleCb('cb-chap'); }, toggle:'cb-chap' },
+    { main:'ALL ON',    sub:'bounds',  action: function(){ setCb('cb-div',true);  setCb('cb-reg',true);  setCb('cb-chap',true);  } },
+    { main:'HIDE',      sub:'bounds',  action: function(){ setCb('cb-div',false); setCb('cb-reg',false); setCb('cb-chap',false); } },
+    { main:'ZOOM US',   sub:'conus',   action: function(){ if(_view) _view.goTo({extent:CONUS},{duration:750}); } },
+  ],
+  // 2 — FIELD ASSETS (orange)
+  [
+    { main:'STATIONS',  sub:'62k pts', action: function(){ toggleCb('cb-stations'); }, toggle:'cb-stations' },
+    { main:'DEPTS',     sub:'30k pts', action: function(){ toggleCb('cb-depts');    }, toggle:'cb-depts'    },
+    { main:'BOTH ON',   sub:'field',   action: function(){ setCb('cb-stations',true); setCb('cb-depts',true); } },
+    { main:'HIDE',      sub:'field',   action: function(){ setCb('cb-stations',false); setCb('cb-depts',false); } },
+    { main:'ZOOM US',   sub:'conus',   action: function(){ if(_view) _view.goTo({extent:CONUS},{duration:750}); } },
+    { main:'COUNT',     sub:'visible', action: function(){ countVisible(); } },
+  ],
+  // 3 — RISK DATA (purple)
+  [
+    { main:'SVI',       sub:'vulner.', action: function(){ toggleCb('cb-svi'); }, toggle:'cb-svi' },
+    { main:'NRI',       sub:'risk idx',action: function(){ toggleCb('cb-nri'); }, toggle:'cb-nri' },
+    { main:'BOTH ON',   sub:'risk',    action: function(){ setCb('cb-svi',true); setCb('cb-nri',true); } },
+    { main:'HIDE',      sub:'risk',    action: function(){ setCb('cb-svi',false); setCb('cb-nri',false); } },
+    { main:'ZOOM IN',   sub:'req\'d',  action: function(){ toast('Zoom in to state level to view'); } },
+    { main:'ABOUT',     sub:'risk',    action: function(){ toast('SVI=CDC Vulnerability · NRI=FEMA Risk'); } },
+  ],
+  // 4 — TOOLS (gold)
+  [
+    { main:'LOCATE',    sub:'me',      action: function(){ locateMe(); } },
+    { main:'CLEAR ALL', sub:'reset',   action: function(){ mobileClearAll(); } },
+    { main:'BASEMAP',   sub:'toggle',  action: function(){ cycleBasemap(); } },
+    { main:'FLARE v2',  sub:'desktop', action: function(){ window.open('https://flare-v2-red.vercel.app/','_blank'); } },
+    { main:'SHARE',     sub:'url',     action: function(){ copyUrl(); } },
+    { main:'HUB',       sub:'back',    action: function(){ window.location.href='https://arc-mobile-ui.vercel.app/orbital-launcher.html'; } },
+  ],
+];
+
+var currentLayer = 0;
+
+function toggleCb(id) {
+  var cb = document.getElementById(id);
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  cb.dispatchEvent(new Event('change'));
+  buildGrids(); // refresh active states
+}
+
+function setCb(id, val) {
+  var cb = document.getElementById(id);
+  if (!cb || cb.checked === val) return;
+  cb.checked = val;
+  cb.dispatchEvent(new Event('change'));
+}
+
+function toast(msg, ms) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, ms || 2200);
+}
+
+function countVisible() {
+  var count = 0;
+  if (_stationsLayer && _stationsLayer.visible) count++;
+  if (_deptsLayer    && _deptsLayer.visible)    count++;
+  toast(count + ' field layer(s) visible');
+}
+
+function locateMe() {
+  if (!navigator.geolocation) { toast('Geolocation not available'); return; }
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    if (!_view) return;
+    _view.goTo({ center:[pos.coords.longitude, pos.coords.latitude], zoom:10 }, {duration:800});
+  }, function(){ toast('Location unavailable'); });
+}
+
+var _basemaps = ['dark-gray-vector','streets-navigation-vector','satellite','oceans'];
+var _basemapIdx = 0;
+function cycleBasemap() {
+  _basemapIdx = (_basemapIdx + 1) % _basemaps.length;
+  if (_view && _view.map) _view.map.basemap = _basemaps[_basemapIdx];
+  toast(_basemaps[_basemapIdx]);
+}
+
+function copyUrl() {
+  var url = window.location.href;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function(){ toast('URL copied'); });
+  } else { toast('Copy: ' + url); }
+}
+
+function mobileClearAll() {
+  ['cb-with','cb-without','cb-stations','cb-depts','cb-svi','cb-nri'].forEach(function(id){ setCb(id,false); });
+  if (_view) _view.goTo({extent:CONUS},{duration:750});
+  buildGrids();
+  toast('Reset');
+}
+
+// ── UPDATE HEADER KPI ──
+function updateMobKpi() {
+  var el = document.getElementById('mob-kpi');
+  if (!el) return;
+  var total = parseInt(document.getElementById('kpi-total') && document.getElementById('kpi-total').textContent) || 0;
+  var k = document.getElementById('kpi-total');
+  if (k) el.textContent = k.textContent + ' incidents';
+}
+
+// Poll KPI total every 3s once map loads
+setInterval(function(){
+  var k = document.getElementById('kpi-total');
+  var el = document.getElementById('mob-kpi');
+  if (k && el && k.textContent !== '—') el.textContent = k.textContent + ' incidents';
+}, 3000);
+
+// ── BUILD TRAY GRIDS ──
+function buildGrids() {
+  var track = document.getElementById('grid-track');
+  track.innerHTML = '';
+
+  LAYERS.forEach(function(slots, l) {
+    var grid = document.createElement('div');
+    grid.className = 'layer-grid';
+    grid.style.setProperty('--layer-color', LAYER_COLORS[l]);
+
+    var ci = 0;
+    for (var pos = 0; pos < 9; pos++) {
+      var btn = document.createElement('button');
+      btn.className = 'btn';
+
+      if (pos === 4) {
+        btn.classList.add('map-btn');
+        btn.textContent = 'MAP';
+      } else if (pos === 6) {
+        btn.classList.add('nav');
+        btn.textContent = '⟵';
+        if (l === 0) btn.disabled = true;
+        btn.addEventListener('click', (function(li){ return function(){ goTo(li-1); }; })(l));
+      } else if (pos === 8) {
+        btn.classList.add('nav');
+        btn.textContent = '⟶';
+        if (l === LAYERS.length-1) btn.disabled = true;
+        btn.addEventListener('click', (function(li){ return function(){ goTo(li+1); }; })(l));
+      } else {
+        var slot = slots[ci++];
+        btn.classList.add('content');
+        // reflect active state
+        if (slot.toggle) {
+          var cb = document.getElementById(slot.toggle);
+          if (cb && cb.checked) btn.classList.add('on');
+        }
+        btn.innerHTML = slot.main + '<span class="btn-sub">' + slot.sub + '</span>';
+        btn.addEventListener('click', (function(s){ return function(){ s.action(); buildGrids(); }; })(slot));
+      }
+      grid.appendChild(btn);
+    }
+    track.appendChild(grid);
+  });
+
+  // sync slide position
+  document.getElementById('grid-track').style.transform = 'translateX(-' + (currentLayer*20) + '%)';
+}
+
+function goTo(layer) {
+  if (layer < 0 || layer >= LAYERS.length) return;
+  currentLayer = layer;
+  document.getElementById('grid-track').style.transform = 'translateX(-' + (layer*20) + '%)';
+  document.getElementById('depth-label').textContent = LAYER_NAMES[layer];
+  document.getElementById('depth-label').style.color = LAYER_COLORS[layer];
+}
+
+function showHelp() {
+  toast('← → navigate layers · tap buttons to toggle · MAP = center');
+}
+
+buildGrids();
+goTo(0);
+</script>
+</body>
+</html>

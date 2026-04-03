@@ -2151,6 +2151,17 @@ function loadAllFilters() {
         buildDeptSearch();
         loadAllFilters();
         updateKpis();
+        // Prime the incident layer: briefly enable both, then restore to off
+        // This ensures the layer initializes correctly so toggling works on first use
+        _showWith = true; _showWithout = true;
+        applyFilters();
+        setTimeout(function() {
+          _showWith = false; _showWithout = false;
+          var cbWith = $('cb-with'); var cbWithout = $('cb-without');
+          if (cbWith) cbWith.checked = false;
+          if (cbWithout) cbWithout.checked = false;
+          applyFilters();
+        }, 500);
         _view.when(function() {
           hideLoad();
           // Extent set at view creation — no auto-zoom

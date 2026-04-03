@@ -410,12 +410,12 @@
       <div style="border-top:1px solid #eee;padding-top:8px;margin-top:4px">
         <label class="layer-row">
           <input type="checkbox" id="cb-depts">
-          <div class="layer-color-swatch" style="background:#C41E3A;border-radius:50%"></div>
+          <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="11" fill="#1e3a5f" stroke="#fff" stroke-width="1.5"/><rect x="10" y="5" width="4" height="14" fill="#fff"/><rect x="5" y="10" width="14" height="4" fill="#fff"/></svg>
           <span>Dept HQ points</span>
         </label>
         <label class="layer-row">
           <input type="checkbox" id="cb-stations">
-          <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
+          <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0"><rect x="2" y="2" width="20" height="20" rx="2" fill="#111827" stroke="#fbbf24" stroke-width="1.5"/><rect x="6" y="10" width="3" height="10" fill="#fbbf24"/><rect x="10.5" y="10" width="3" height="10" fill="#fbbf24"/><rect x="15" y="10" width="3" height="10" fill="#fbbf24"/><rect x="5" y="8" width="14" height="2.5" fill="#fbbf24"/><polygon points="12,1 22,8 2,8" fill="#fbbf24"/></svg>
           <span>Fire Stations</span>
           <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
         </label>
@@ -538,6 +538,7 @@ require([
   "esri/renderers/UniqueValueRenderer",
   "esri/renderers/ClassBreaksRenderer",
   "esri/symbols/SimpleMarkerSymbol",
+  "esri/symbols/PictureMarkerSymbol",
   "esri/symbols/SimpleFillSymbol",
   "esri/widgets/Home",
   "esri/widgets/ScaleBar",
@@ -548,7 +549,7 @@ require([
 ], function(
   Map, MapView, FeatureLayer,
   UniqueValueRenderer, ClassBreaksRenderer,
-  SimpleMarkerSymbol, SimpleFillSymbol,
+  SimpleMarkerSymbol, SimpleFillSymbol, PictureMarkerSymbol,
   Home, ScaleBar, Expand, Legend, PopupTemplate, reactiveUtils
 ) {
 
@@ -1556,15 +1557,24 @@ function loadAllFilters() {
       outFields: ['*'],
       renderer: {
         type: 'simple',
-        symbol: new SimpleMarkerSymbol({
-          style: 'square', color: [20, 20, 20, 220], size: 10,
-          outline: { color: [251, 191, 36, 220], width: 1.5 }
+        symbol: new PictureMarkerSymbol({
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">' +
+            '<rect x="2" y="2" width="20" height="20" rx="2" fill="#111827" stroke="#fbbf24" stroke-width="1.5"/>' +
+            '<rect x="6" y="10" width="3" height="10" fill="#fbbf24"/>' +
+            '<rect x="10.5" y="10" width="3" height="10" fill="#fbbf24"/>' +
+            '<rect x="15" y="10" width="3" height="10" fill="#fbbf24"/>' +
+            '<rect x="5" y="8" width="14" height="2.5" fill="#fbbf24"/>' +
+            '<polygon points="12,1 22,8 2,8" fill="#fbbf24"/>' +
+            '</svg>'
+          ),
+          width: 18, height: 18
         })
       },
       popupEnabled: false
     });
 
-    // Departments layer — HQ points, star symbol, always visible at national scale
+    // Departments layer — HQ points
     _deptsLayer = new FeatureLayer({
       url: DEPARTMENTS_URL,
       visible: false,
@@ -1572,9 +1582,15 @@ function loadAllFilters() {
       outFields: ['*'],
       renderer: {
         type: 'simple',
-        symbol: new SimpleMarkerSymbol({
-          style: 'circle', color: [220, 38, 38, 200], size: 7,
-          outline: { color: [255, 255, 255, 200], width: 1.2 }
+        symbol: new PictureMarkerSymbol({
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">' +
+            '<circle cx="12" cy="12" r="11" fill="#1e3a5f" stroke="#ffffff" stroke-width="1.5"/>' +
+            '<rect x="10" y="5" width="4" height="14" fill="#ffffff"/>' +
+            '<rect x="5" y="10" width="14" height="4" fill="#ffffff"/>' +
+            '</svg>'
+          ),
+          width: 18, height: 18
         })
       },
       popupEnabled: false

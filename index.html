@@ -47,14 +47,14 @@
     }
     .kpi-num.dim { color: rgba(255,255,255,0.25); font-size: 16px; }
     .kpi-pct {
-      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4);
-      font-variant-numeric: tabular-nums; margin-left: 3px; align-self: flex-end; line-height: 1.4;
+      font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.85);
+      font-variant-numeric: tabular-nums; margin-left: 4px; align-self: flex-end; line-height: 1.4;
     }
-    .kpi-pct.dim { color: rgba(255,255,255,0.15); }
+    .kpi-pct.dim { color: rgba(255,255,255,0.2); }
     .kpi-num-row { display: flex; align-items: baseline; justify-content: center; }
     .kpi-lbl {
-      font-size: 9.5px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.8px; color: rgba(255,255,255,0.45); margin-top: 5px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.7px; color: var(--kc, rgba(255,255,255,0.7)); margin-top: 5px;
       text-align: center; max-width: 120px;
     }
     .kpi-dot {
@@ -1165,7 +1165,7 @@ require([
     } else if (changedIndex > 0) {
       zoomToFiltered(changedIndex - 1);
     } else {
-      _view.goTo({ extent:{xmin:-124,ymin:24,xmax:-67,ymax:50,spatialReference:{wkid:4326}} },
+      _view.goTo({ extent:{xmin:-127,ymin:23,xmax:-64,ymax:52,spatialReference:{wkid:4326}} },
         { duration:750, easing:'ease-in-out' });
     }
   }
@@ -1183,7 +1183,7 @@ function loadAllFilters() {
     reloadChainFrom(0);
     // Zoom back to 48 states
     _view.goTo({
-      extent: { xmin:-124, ymin:24, xmax:-67, ymax:50, spatialReference:{wkid:4326} }
+      extent: { xmin:-127, ymin:23, xmax:-64, ymax:52, spatialReference:{wkid:4326} }
     }, { duration: 700 });
   });
 

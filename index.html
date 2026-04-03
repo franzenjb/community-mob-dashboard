@@ -1380,23 +1380,46 @@ function loadAllFilters() {
     $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
     // Load station CSV into memory for instant client-side typeahead
     var _stationData = [];   // [{station_name, department_name, city, state, x, y}]
+
+    // Proper RFC-4180 CSV parser — handles quoted fields with embedded commas
+    function parseCSV(txt) {
+      var rows = []; var row = []; var field = ''; var inQ = false;
+      txt = txt.replace(/^\uFEFF/, '');
+      for (var i = 0; i < txt.length; i++) {
+        var c = txt[i];
+        if (inQ) {
+          if (c === '"' && txt[i+1] === '"') { field += '"'; i++; }
+          else if (c === '"') { inQ = false; }
+          else { field += c; }
+        } else {
+          if (c === '"') { inQ = true; }
+          else if (c === ',') { row.push(field); field = ''; }
+          else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+          else if (c !== '\r') { field += c; }
+        }
+      }
+      if (field || row.length) { row.push(field); rows.push(row); }
+      return rows;
+    }
+
     fetch('/stations.csv').then(function(r){ return r.text(); }).then(function(txt) {
-      var lines = txt.split('\n');
-      var headers = lines[0].replace(/^\uFEFF/,'').split(',');
+      var rows = parseCSV(txt);
+      if (!rows.length) return;
+      var headers = rows[0];
       var iName = headers.indexOf('station_name');
       var iDept = headers.indexOf('department_name');
       var iCity = headers.indexOf('city');
       var iSt   = headers.indexOf('state');
       var iX    = headers.indexOf('x');
       var iY    = headers.indexOf('y');
-      for (var i = 1; i < lines.length; i++) {
-        var cols = lines[i].split(',');
+      for (var i = 1; i < rows.length; i++) {
+        var cols = rows[i];
         if (cols.length < 5) continue;
         _stationData.push({
-          station_name:    cols[iName] || '',
-          department_name: cols[iDept] || '',
-          city:            cols[iCity] || '',
-          state:           cols[iSt]   || '',
+          station_name:    (cols[iName] || '').trim(),
+          department_name: (cols[iDept] || '').trim(),
+          city:            (cols[iCity] || '').trim(),
+          state:           (cols[iSt]   || '').trim(),
           x: parseFloat(cols[iX]),
           y: parseFloat(cols[iY])
         });

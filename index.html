@@ -433,13 +433,16 @@
             <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
               color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
           </label>
-          <div id="station-search-row" style="display:none;padding:4px 0 2px 0;position:relative">
-            <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
-            <div id="station-dropdown" style="
-              display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
-              background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
-              max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.1);
-            "></div>
+          <div id="station-search-row" style="display:none;padding:4px 0 2px 0">
+            <div style="position:relative">
+              <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
+              <div id="station-dropdown" style="
+                display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
+                background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
+                max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+              "></div>
+            </div>
+            <div id="dept-chips" style="display:none;margin-top:5px;display:flex;flex-wrap:wrap;gap:4px"></div>
           </div>
         </div>
       </div>
@@ -1430,16 +1433,18 @@ function loadAllFilters() {
       var on = $('cb-stations').checked;
       _stationsLayer.visible = on;
       $('station-search-row').style.display = on ? '' : 'none';
-      if (!on) { $('station-search').value = ''; dd.style.display = 'none'; _stationsLayer.definitionExpression = '1=1'; }
+      if (!on) { $('station-search').value = ''; dd.style.display = 'none'; _selectedDepts = []; renderChips(); _stationsLayer.definitionExpression = '1=1'; }
     });
 
-    // Department typeahead — deduplicated list; selecting shows ALL stations for that dept
+    // Department typeahead — multi-select with chips
     var _stationTimer;
-    var inp = $('station-search');
-    var dd  = $('station-dropdown');
+    var inp        = $('station-search');
+    var dd         = $('station-dropdown');
+    var chipsEl    = $('dept-chips');
+    var _selectedDepts = [];   // array of department_name strings
 
     // Build sorted unique department list after CSV loads
-    var _deptList = [];   // [{department_name, state, stationCount}]
+    var _deptList = [];
     function buildDeptList() {
       var map = {};
       _stationData.forEach(function(s) {
@@ -1453,6 +1458,71 @@ function loadAllFilters() {
       });
     }
 
+    function applyDeptFilter() {
+      if (!_selectedDepts.length) {
+        _stationsLayer.definitionExpression = '1=1';
+        return;
+      }
+      var clauses = _selectedDepts.map(function(n){
+        return "department_name = '" + n.replace(/'/g,"''") + "'";
+      });
+      _stationsLayer.definitionExpression = clauses.join(' OR ');
+
+      // Zoom to combined extent of all selected depts
+      var pts = _stationData.filter(function(s){
+        return _selectedDepts.indexOf(s.department_name) !== -1 && !isNaN(s.x) && !isNaN(s.y);
+      });
+      if (pts.length === 1) {
+        _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
+      } else if (pts.length > 1) {
+        var xs = pts.map(function(s){ return s.x; });
+        var ys = pts.map(function(s){ return s.y; });
+        _view.goTo({
+          target: { type:'extent',
+            xmin: Math.min.apply(null,xs) - 0.1,
+            xmax: Math.max.apply(null,xs) + 0.1,
+            ymin: Math.min.apply(null,ys) - 0.1,
+            ymax: Math.max.apply(null,ys) + 0.1,
+            spatialReference: { wkid:4326 }
+          }
+        }, { duration:700 });
+      }
+    }
+
+    function renderChips() {
+      chipsEl.innerHTML = '';
+      if (!_selectedDepts.length) { chipsEl.style.display = 'none'; return; }
+      chipsEl.style.display = 'flex';
+      _selectedDepts.forEach(function(name) {
+        var chip = document.createElement('div');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:3px 8px;' +
+          'background:#fdf5f6;border:1px solid #C41E3A;border-radius:12px;font-size:11px;' +
+          'color:#C41E3A;font-weight:600;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis';
+        chip.title = name;
+        chip.innerHTML = '<span style="overflow:hidden;text-overflow:ellipsis">' + name + '</span>' +
+          '<span style="cursor:pointer;font-size:13px;line-height:1;margin-left:2px;flex-shrink:0">×</span>';
+        chip.querySelector('span:last-child').addEventListener('click', function() {
+          _selectedDepts = _selectedDepts.filter(function(n){ return n !== name; });
+          renderChips();
+          applyDeptFilter();
+        });
+        chipsEl.appendChild(chip);
+      });
+      // Clear all button when >1 dept selected
+      if (_selectedDepts.length > 1) {
+        var clr = document.createElement('div');
+        clr.style.cssText = 'padding:3px 8px;border:1px solid #aaa;border-radius:12px;font-size:11px;' +
+          'color:#666;cursor:pointer;white-space:nowrap';
+        clr.textContent = 'Clear all';
+        clr.addEventListener('click', function() {
+          _selectedDepts = [];
+          renderChips();
+          applyDeptFilter();
+        });
+        chipsEl.appendChild(clr);
+      }
+    }
+
     function showDeptDropdown(matches) {
       dd.innerHTML = '';
       if (!matches.length) {
@@ -1461,35 +1531,29 @@ function loadAllFilters() {
         return;
       }
       matches.slice(0, 50).forEach(function(d) {
+        var already = _selectedDepts.indexOf(d.department_name) !== -1;
         var item = document.createElement('div');
-        item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;line-height:1.35';
+        item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;' +
+          'line-height:1.35' + (already ? ';background:#fdf5f6' : '');
         item.innerHTML =
-          '<div style="font-weight:600;color:#222">' + d.department_name + '</div>' +
-          '<div style="font-size:11px;color:#888">' + d.state + ' &nbsp;·&nbsp; ' + d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div>';
+          '<div style="font-weight:600;color:' + (already ? '#C41E3A' : '#222') + '">' +
+          (already ? '✓ ' : '') + d.department_name + '</div>' +
+          '<div style="font-size:11px;color:#888">' + d.state + ' &nbsp;·&nbsp; ' +
+          d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div>';
         item.addEventListener('mousedown', function(e) {
           e.preventDefault();
-          inp.value = d.department_name;
-          dd.style.display = 'none';
-          // Filter layer to all stations for this department
-          var safe = d.department_name.replace(/'/g, "''");
-          _stationsLayer.definitionExpression = "department_name = '" + safe + "'";
-          // Zoom to extent of all matching stations
-          var pts = _stationData.filter(function(s){ return s.department_name === d.department_name; })
-                                .filter(function(s){ return !isNaN(s.x) && !isNaN(s.y); });
-          if (pts.length === 1) {
-            _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
-          } else if (pts.length > 1) {
-            var xs = pts.map(function(s){ return s.x; });
-            var ys = pts.map(function(s){ return s.y; });
-            _view.goTo({
-              target: { type:'extent', xmin:Math.min.apply(null,xs)-0.05, xmax:Math.max.apply(null,xs)+0.05,
-                                       ymin:Math.min.apply(null,ys)-0.05, ymax:Math.max.apply(null,ys)+0.05,
-                                       spatialReference:{wkid:4326} }
-            }, { duration:700 });
+          if (!already) {
+            _selectedDepts.push(d.department_name);
+          } else {
+            _selectedDepts = _selectedDepts.filter(function(n){ return n !== d.department_name; });
           }
+          inp.value = '';
+          dd.style.display = 'none';
+          renderChips();
+          applyDeptFilter();
         });
-        item.addEventListener('mouseover', function(){ item.style.background='#fdf5f6'; });
-        item.addEventListener('mouseout',  function(){ item.style.background=''; });
+        item.addEventListener('mouseover', function(){ if (!already) item.style.background='#fdf5f6'; });
+        item.addEventListener('mouseout',  function(){ if (!already) item.style.background=''; });
         dd.appendChild(item);
       });
       dd.style.display = '';
@@ -1498,7 +1562,7 @@ function loadAllFilters() {
     inp.addEventListener('input', function() {
       clearTimeout(_stationTimer);
       var q = inp.value.trim().toLowerCase();
-      if (!q) { dd.style.display='none'; _stationsLayer.definitionExpression='1=1'; return; }
+      if (!q) { dd.style.display='none'; return; }
       _stationTimer = setTimeout(function() {
         if (!_deptList.length) buildDeptList();
         var matches = _deptList.filter(function(d) {

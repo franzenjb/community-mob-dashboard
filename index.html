@@ -64,7 +64,7 @@
     }
 
     /* ── Layout ── */
-    .app-body { display: flex; height: calc(100% - 50px - 84px); }
+    .app-body { display: flex; height: calc(100% - 50px - 84px); transition: height 0.25s ease; }
 
     /* ── Left sidebar + collapse wrapper ── */
     .left-wrap { display: flex; flex-shrink: 0; position: relative; }
@@ -271,8 +271,7 @@
         Fire Learning and Response · CY2024
       </div>
     </div>
-
-    <!-- Body -->
+<!-- Body -->
     <div style="padding:24px 28px 20px">
 
       <!-- Feature cards -->
@@ -363,6 +362,34 @@
   <!-- category + extra KPI tiles injected by JS -->
 </div>
 
+<!-- Dept KPI bar — slides down when dept filter active -->
+<div id="dept-kpi-bar" style="
+  display:none; background:#1a1f2e; border-top:1px solid rgba(255,255,255,0.08);
+  height:64px; flex-shrink:0; overflow-x:auto; scrollbar-width:none;
+  align-items:stretch;
+">
+  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
+    <div class="kpi-num dim" id="dkpi-depts">—</div>
+    <div class="kpi-lbl">Departments</div>
+  </div>
+  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
+    <div class="kpi-num dim" id="dkpi-stations">—</div>
+    <div class="kpi-lbl">Stations</div>
+  </div>
+  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
+    <div class="kpi-num dim" id="dkpi-units">—</div>
+    <div class="kpi-lbl">Apparatus Units</div>
+  </div>
+  <div class="kpi-tile" style="--kc:#60a5fa;border-right:1px solid rgba(255,255,255,0.06)">
+    <div class="kpi-num dim" id="dkpi-pop">—</div>
+    <div class="kpi-lbl">Population Protected</div>
+  </div>
+  <div class="kpi-tile" style="--kc:#34d399">
+    <div class="kpi-num dim" id="dkpi-ff">—</div>
+    <div class="kpi-lbl">Firefighters</div>
+  </div>
+</div>
+
 <!-- Body -->
 <div class="app-body">
 
@@ -437,6 +464,12 @@
           </label>
           <!-- Reference Layers -->
           <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
+          <label class="layer-row" id="lyr-depts">
+            <input type="checkbox" id="cb-depts">
+            <div class="layer-color-swatch" style="background:#C41E3A;border-radius:50%"></div>
+            <span>Fire Dept HQ (NERIS)</span>
+          </label>
           <div id="reference-layers">
             <label class="layer-row" id="lyr-svi">
               <input type="checkbox" id="cb-svi">
@@ -606,7 +639,8 @@ require([
   var _activeFilter    = { division:'', region:'', chapter:'' };
   var _sviLayer        = null;
   var _nriLayer        = null;
-  var _stationsLayer   = null;
+  var _stationsLayer   = null;   // FeatureLayer — 62,449 stations
+  var _deptsLayer      = null;   // FeatureLayer — 30,687 dept HQ points
   var _view            = null;
   var _kpiTotal        = 0;
   var _showWith        = true;
@@ -1390,8 +1424,25 @@ function loadAllFilters() {
       popupEnabled: false
     });
 
-    map.addMany([_sviLayer, _nriLayer, _stationsLayer]);
+    // Departments layer — HQ points, star symbol, always visible at national scale
+    _deptsLayer = new FeatureLayer({
+      url: DEPARTMENTS_URL,
+      visible: false,
+      title: 'Fire Departments',
+      outFields: ['*'],
+      renderer: {
+        type: 'simple',
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle', color: [220, 38, 38, 200], size: 7,
+          outline: { color: [255, 255, 255, 200], width: 1.2 }
+        })
+      },
+      popupEnabled: false
+    });
 
+    map.addMany([_sviLayer, _nriLayer, _stationsLayer, _deptsLayer]);
+
+    $('cb-depts').addEventListener('change', function() { _deptsLayer.visible = $('cb-depts').checked; });
     $('cb-svi').addEventListener('change', function() { _sviLayer.visible = $('cb-svi').checked; });
     $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
 
@@ -1457,6 +1508,45 @@ function loadAllFilters() {
       }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
     }
 
+    function updateDeptKpiBar() {
+      var bar = $('dept-kpi-bar');
+      if (!_selectedDepts.length) {
+        bar.style.display = 'none';
+        return;
+      }
+      bar.style.display = 'flex';
+      // Query dept layer for selected depts
+      var clauses = _selectedDepts.map(function(n){
+        return "name = '" + n.replace(/'/g,"''") + "'";
+      });
+      var deptLayer = new FeatureLayer({ url: DEPARTMENTS_URL });
+      deptLayer.queryFeatures({
+        where: clauses.join(' OR '),
+        outFields: ['station_count','unit_count','population_protected',
+                    'firefighters_career_ft','firefighters_career_pt','firefighters_volunteer'],
+        returnGeometry: false, num: 2000
+      }).then(function(r) {
+        var totStations=0, totUnits=0, totPop=0, totFF=0;
+        r.features.forEach(function(f) {
+          var a = f.attributes;
+          totStations += (a.station_count || 0);
+          totUnits    += (a.unit_count    || 0);
+          totPop      += (a.population_protected || 0);
+          totFF       += (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0);
+        });
+        function setKpi(id, val) {
+          var el = $(id); if (!el) return;
+          el.textContent = val > 0 ? val.toLocaleString() : '—';
+          el.className = 'kpi-num' + (val === 0 ? ' dim' : '');
+        }
+        setKpi('dkpi-depts',    _selectedDepts.length);
+        setKpi('dkpi-stations', totStations);
+        setKpi('dkpi-units',    totUnits);
+        setKpi('dkpi-pop',      totPop);
+        setKpi('dkpi-ff',       totFF);
+      });
+    }
+
     function applyDeptFilter() {
       if (!_selectedDepts.length) {
         _stationsLayer.definitionExpression = '1=1';
@@ -1472,6 +1562,7 @@ function loadAllFilters() {
       if (cb) cb.checked = true;
       updateStationKpi();
       zoomToSelectedDepts();
+      updateDeptKpiBar();
     }
 
     function renderChips() {
@@ -1503,6 +1594,7 @@ function loadAllFilters() {
           _selectedDepts = [];
           renderChips();
           applyDeptFilter();
+          updateDeptKpiBar();
         });
         chipsEl.appendChild(clr);
       }
@@ -1634,6 +1726,112 @@ function loadAllFilters() {
           $('sidebar-right').classList.add('open');
           return;
         }
+        // Check for department HQ
+        var deptHit = response.results.find(function(r) {
+          return r.graphic && r.graphic.layer === _deptsLayer;
+        });
+        if (deptHit) {
+          var a = deptHit.graphic.attributes;
+          var services = (a.fire_services || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          var ems = (a.ems_services || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          var inv = (a.investigation_services || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          var totalFF = (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0);
+          var hasStaff = totalFF > 0 || a.population_protected > 0;
+
+          var h = '<div style="padding:0 0 12px">';
+          // Header
+          h += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">';
+          h += '<div style="width:32px;height:32px;background:#C41E3A;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:800">🔥</div>';
+          h += '<div><div style="font-size:14px;font-weight:800;color:#111;line-height:1.2">' + (a.name || 'Fire Department') + '</div>';
+          h += '<div style="font-size:11px;color:#888;margin-top:2px">' + (a.city||'') + (a.state ? ', '+a.state : '') + (a.department_type ? ' &nbsp;·&nbsp; '+a.department_type : '') + '</div></div></div>';
+
+          // Headline stats
+          h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+          function dkpi(label, val, color) {
+            if (!val && val !== 0) return '';
+            return '<div style="background:#f8f8f8;border-radius:6px;padding:8px 10px;text-align:center">' +
+              '<div style="font-size:18px;font-weight:800;color:'+(color||'#111')+'">' + val.toLocaleString() + '</div>' +
+              '<div style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-top:2px">' + label + '</div></div>';
+          }
+          if (a.station_count) h += dkpi('Stations', a.station_count, '#C41E3A');
+          if (a.unit_count) h += dkpi('Apparatus', a.unit_count, '#f97316');
+          if (a.population_protected) h += dkpi('Pop. Protected', a.population_protected, '#2D6DB4');
+          if (totalFF) h += dkpi('Firefighters', totalFF, '#16a34a');
+          h += '</div>';
+
+          // Staffing breakdown
+          if (hasStaff && totalFF > 0) {
+            h += '<div style="margin-bottom:10px;padding:8px 10px;background:#f8f8f8;border-radius:6px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:6px">Staffing</div>';
+            function staffRow(label, ft, pt, vol) {
+              if (!ft && !pt && !vol) return '';
+              var r = '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">';
+              r += '<span style="color:#555">' + label + '</span>';
+              r += '<span style="font-weight:600">';
+              var parts = [];
+              if (ft) parts.push(ft + ' career FT');
+              if (pt) parts.push(pt + ' PT');
+              if (vol) parts.push(vol + ' volunteer');
+              r += parts.join(' · ') + '</span></div>';
+              return r;
+            }
+            h += staffRow('Firefighters', a.firefighters_career_ft, a.firefighters_career_pt, a.firefighters_volunteer);
+            h += staffRow('EMS Only', a.ems_only_career_ft, a.ems_only_career_pt, a.ems_only_volunteer);
+            h += '</div>';
+          }
+
+          // Services
+          if (services.length) {
+            h += '<div style="margin-bottom:10px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:5px">Fire Services</div>';
+            h += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+            services.forEach(function(s) {
+              h += '<span style="font-size:10px;padding:2px 6px;background:#fdf5f6;border:1px solid #f5c6c6;border-radius:10px;color:#C41E3A">' + s + '</span>';
+            });
+            h += '</div></div>';
+          }
+          if (ems.length) {
+            h += '<div style="margin-bottom:10px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:5px">EMS Services</div>';
+            h += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+            ems.forEach(function(s) {
+              h += '<span style="font-size:10px;padding:2px 6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#2D6DB4">' + s + '</span>';
+            });
+            h += '</div></div>';
+          }
+          if (inv.length) {
+            h += '<div style="margin-bottom:10px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:5px">Investigation</div>';
+            h += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+            inv.forEach(function(s) {
+              h += '<span style="font-size:10px;padding:2px 6px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;color:#16a34a">' + s + '</span>';
+            });
+            h += '</div></div>';
+          }
+
+          // Accreditation + shifts
+          var accrBits = [];
+          if (a.assessment_caas_accredited) accrBits.push('CAAS Accredited');
+          if (a.assessment_cpse_accredited) accrBits.push('CPSE Accredited');
+          if (accrBits.length || a.shift_count) {
+            h += '<div style="margin-bottom:10px;font-size:11px;color:#555">';
+            if (accrBits.length) h += '<div style="margin-bottom:3px">✓ ' + accrBits.join(' &nbsp;·&nbsp; ✓ ') + '</div>';
+            if (a.shift_count) h += '<div>' + a.shift_count + ' shift' + (a.shift_count!==1?'s':'') + (a.shift_duration ? ', ' + a.shift_duration + 'hr' : '') + '</div>';
+            h += '</div>';
+          }
+
+          // Website + address
+          h += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:4px;font-size:11px;color:#888">';
+          if (a.address_line_1) h += '<div>' + a.address_line_1 + (a.city ? ', ' + a.city : '') + (a.state ? ' ' + a.state : '') + (a.zip_code ? ' ' + a.zip_code : '') + '</div>';
+          if (a.website) h += '<div style="margin-top:4px"><a href="' + a.website + '" target="_blank" style="color:#C41E3A;text-decoration:none">' + a.website.replace('https://','').replace('http://','').replace(/\/$/,'') + ' →</a></div>';
+          if (a.neris_id) h += '<div style="margin-top:4px;font-family:monospace;font-size:10px;color:#bbb">' + a.neris_id + '</div>';
+          h += '</div></div>';
+
+          $('sr-body').innerHTML = h;
+          $('sidebar-right').classList.add('open');
+          return;
+        }
+
         // Check for fire station
         var stHit = response.results.find(function(r) {
           return r.graphic && r.graphic.layer === _stationsLayer;

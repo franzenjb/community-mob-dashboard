@@ -1421,6 +1421,7 @@ function loadAllFilters() {
       return rows;
     }
 
+    var _stationDataReady = false;
     fetch('/stations.csv').then(function(r){ return r.text(); }).then(function(txt) {
       txt = txt.replace(/\r/g, '');   // normalize CRLF → LF
       var rows = parseCSV(txt);
@@ -1444,6 +1445,9 @@ function loadAllFilters() {
           y: parseFloat(cols[iY])
         });
       }
+      _stationDataReady = true;
+      // If depts were selected before data loaded, zoom now
+      if (_selectedDepts.length) zoomToSelectedDepts();
     });
 
     $('cb-stations').addEventListener('change', function() {
@@ -1472,29 +1476,15 @@ function loadAllFilters() {
       });
     }
 
-    function applyDeptFilter() {
-      if (!_selectedDepts.length) {
-        _stationsLayer.definitionExpression = '1=1';
-        return;
-      }
-      var clauses = _selectedDepts.map(function(n){
-        return "department_name = '" + n.replace(/'/g,"''") + "'";
-      });
-      var expr = clauses.join(' OR ');
-      _stationsLayer.definitionExpression = expr;
-
-      // Make layer visible
-      _stationsLayer.visible = true;
-      var cb = $('cb-stations');
-      if (cb) cb.checked = true;
-
-      // Zoom using in-memory coords from _stationData (CSVLayer has no queryExtent)
+    function zoomToSelectedDepts() {
+      if (!_stationDataReady || !_selectedDepts.length) return;
       var pts = _stationData.filter(function(s){
         return _selectedDepts.indexOf(s.department_name) !== -1 && !isNaN(s.x) && !isNaN(s.y);
       });
+      if (!pts.length) return;
       if (pts.length === 1) {
         _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
-      } else if (pts.length > 1) {
+      } else {
         var xs = pts.map(function(s){ return s.x; });
         var ys = pts.map(function(s){ return s.y; });
         var xpad = Math.max(0.02, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.05);
@@ -1507,6 +1497,23 @@ function loadAllFilters() {
           }
         }, { duration:700 });
       }
+    }
+
+    function applyDeptFilter() {
+      if (!_selectedDepts.length) {
+        _stationsLayer.definitionExpression = '1=1';
+        return;
+      }
+      var clauses = _selectedDepts.map(function(n){
+        return "department_name = '" + n.replace(/'/g,"''") + "'";
+      });
+      _stationsLayer.definitionExpression = clauses.join(' OR ');
+      // Make layer visible
+      _stationsLayer.visible = true;
+      var cb = $('cb-stations');
+      if (cb) cb.checked = true;
+      // Zoom — if data ready go now, otherwise fetch callback will trigger it
+      zoomToSelectedDepts();
     }
 
     function renderChips() {

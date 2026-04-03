@@ -1165,14 +1165,14 @@ require([
     if (!_view || !_stationsLayer) return;
     var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
     var rcW = buildRCWhere();
-    if (rcW === '1=1') return; // nothing selected, don't zoom
-    // Query with explicit where — don't rely on definitionExpression timing
-    _stationsLayer.queryExtent({ where: rcW, outSpatialReference: { wkid: 102100 } })
-      .then(function(r) {
-        if (!r || !r.extent) return;
-        _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
-             .catch(function(){});
-      }).catch(function(){});
+    if (rcW === '1=1') return;
+    // Clip to US bounds to exclude records with bad 0,0 coordinates
+    var usClause = rcW + " AND x > -180 AND x < -50 AND y > 15 AND y < 75";
+    _stationsLayer.queryExtent({ where: usClause }).then(function(r) {
+      if (!r || !r.extent) return;
+      _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
+           .catch(function(){});
+    }).catch(function(){});
   }
 
   function queryUnique(fieldName, whereClause) {

@@ -1246,8 +1246,9 @@ require([
     }, 500);
 
     // Auto-enable the matching boundary layer when a filter is selected
+    // Auto-enable boundary layer — divisions and regions only, not chapters (too granular at national scale)
     var bid = FILTER_TO_BOUNDARY[item.key];
-    if (bid && item.sel.value && _boundaryLayers[bid]) {
+    if (bid && bid !== 'chap' && item.sel.value && _boundaryLayers[bid]) {
       _boundaryLayers[bid].visible = true;
       var cb = $('cb-' + bid);
       if (cb) cb.checked = true;

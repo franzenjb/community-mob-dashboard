@@ -417,7 +417,24 @@
         </div>
       </div>
 
-      <!-- Fire Department Search — standalone -->
+      <!-- NERIS Fire Layers — prominent, always visible -->
+      <div class="layer-group" style="padding-bottom:6px">
+        <span class="layer-group-label">NERIS Fire Layers</span>
+        <label class="layer-row" id="lyr-depts">
+          <input type="checkbox" id="cb-depts">
+          <div class="layer-color-swatch" style="background:#C41E3A;border-radius:50%"></div>
+          <span>Fire Dept HQ</span>
+        </label>
+        <label class="layer-row" id="lyr-stations">
+          <input type="checkbox" id="cb-stations">
+          <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
+          <span>Fire Stations</span>
+          <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+            color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+        </label>
+      </div>
+
+      <!-- Fire Department Search -->
       <div class="layer-group" style="padding-bottom:6px">
         <span class="layer-group-label">Fire Departments</span>
         <div style="padding:4px 0 2px 0">
@@ -445,7 +462,6 @@
           <span id="acc-layers-arrow" style="font-size:13px;color:#999">▸</span>
         </button>
         <div id="acc-layers-body" style="display:none">
-          <!-- ARC Boundaries -->
           <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:6px 0 3px">ARC Boundaries</div>
           <label class="layer-row">
             <input type="checkbox" id="cb-div" checked>
@@ -462,14 +478,7 @@
             <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
             <span>Chapters</span>
           </label>
-          <!-- Reference Layers -->
           <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
-          <label class="layer-row" id="lyr-depts">
-            <input type="checkbox" id="cb-depts">
-            <div class="layer-color-swatch" style="background:#C41E3A;border-radius:50%"></div>
-            <span>Fire Dept HQ (NERIS)</span>
-          </label>
           <div id="reference-layers">
             <label class="layer-row" id="lyr-svi">
               <input type="checkbox" id="cb-svi">
@@ -483,13 +492,6 @@
               <div class="layer-color-swatch" style="background: linear-gradient(135deg,#bfdbfe,#6366f1,#312e81)"></div>
               <span>National Risk Index (NRI)</span>
               <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-                color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-            </label>
-            <label class="layer-row" id="lyr-stations">
-              <input type="checkbox" id="cb-stations">
-              <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
-              <span>Fire Stations (NERIS)</span>
-              <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
                 color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
             </label>
           </div>

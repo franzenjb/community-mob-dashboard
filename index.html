@@ -434,7 +434,7 @@
               color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
           </label>
           <div id="station-search-row" style="display:none;padding:4px 0 2px 0;position:relative">
-            <input type="text" id="station-search" class="fsel" placeholder="Search stations or departments…" autocomplete="off">
+            <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
             <div id="station-dropdown" style="
               display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
               background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
@@ -1410,33 +1410,60 @@ function loadAllFilters() {
       if (!on) { $('station-search').value = ''; dd.style.display = 'none'; _stationsLayer.definitionExpression = '1=1'; }
     });
 
-    // Typeahead — instant filter against in-memory _stationData
+    // Department typeahead — deduplicated list; selecting shows ALL stations for that dept
     var _stationTimer;
     var inp = $('station-search');
     var dd  = $('station-dropdown');
 
-    function showStationDropdown(matches) {
+    // Build sorted unique department list after CSV loads
+    var _deptList = [];   // [{department_name, state, stationCount}]
+    function buildDeptList() {
+      var map = {};
+      _stationData.forEach(function(s) {
+        var key = s.department_name;
+        if (!key) return;
+        if (!map[key]) map[key] = { department_name: key, state: s.state, count: 0 };
+        map[key].count++;
+      });
+      _deptList = Object.values(map).sort(function(a,b){
+        return a.department_name.localeCompare(b.department_name);
+      });
+    }
+
+    function showDeptDropdown(matches) {
       dd.innerHTML = '';
       if (!matches.length) {
         dd.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:#aaa">No results</div>';
         dd.style.display = '';
         return;
       }
-      matches.forEach(function(s) {
+      matches.slice(0, 50).forEach(function(d) {
         var item = document.createElement('div');
         item.style.cssText = 'padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;line-height:1.35';
         item.innerHTML =
-          '<div style="font-weight:600;color:#222">' + s.station_name + '</div>' +
-          '<div style="font-size:11px;color:#888">' + s.department_name +
-          (s.city ? ' · ' + s.city + ', ' + s.state : '') + '</div>';
+          '<div style="font-weight:600;color:#222">' + d.department_name + '</div>' +
+          '<div style="font-size:11px;color:#888">' + d.state + ' &nbsp;·&nbsp; ' + d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div>';
         item.addEventListener('mousedown', function(e) {
           e.preventDefault();
-          inp.value = s.station_name || s.department_name;
+          inp.value = d.department_name;
           dd.style.display = 'none';
-          var safe = (s.station_name || '').replace(/'/g,"''");
-          _stationsLayer.definitionExpression = safe ? "station_name = '" + safe + "'" : '1=1';
-          if (!isNaN(s.x) && !isNaN(s.y))
-            _view.goTo({ center:[s.x, s.y], zoom:14 }, { duration:600 });
+          // Filter layer to all stations for this department
+          var safe = d.department_name.replace(/'/g, "''");
+          _stationsLayer.definitionExpression = "department_name = '" + safe + "'";
+          // Zoom to extent of all matching stations
+          var pts = _stationData.filter(function(s){ return s.department_name === d.department_name; })
+                                .filter(function(s){ return !isNaN(s.x) && !isNaN(s.y); });
+          if (pts.length === 1) {
+            _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
+          } else if (pts.length > 1) {
+            var xs = pts.map(function(s){ return s.x; });
+            var ys = pts.map(function(s){ return s.y; });
+            _view.goTo({
+              target: { type:'extent', xmin:Math.min.apply(null,xs)-0.05, xmax:Math.max.apply(null,xs)+0.05,
+                                       ymin:Math.min.apply(null,ys)-0.05, ymax:Math.max.apply(null,ys)+0.05,
+                                       spatialReference:{wkid:4326} }
+            }, { duration:700 });
+          }
         });
         item.addEventListener('mouseover', function(){ item.style.background='#fdf5f6'; });
         item.addEventListener('mouseout',  function(){ item.style.background=''; });
@@ -1450,12 +1477,12 @@ function loadAllFilters() {
       var q = inp.value.trim().toLowerCase();
       if (!q) { dd.style.display='none'; _stationsLayer.definitionExpression='1=1'; return; }
       _stationTimer = setTimeout(function() {
-        var matches = _stationData.filter(function(s) {
-          return s.station_name.toLowerCase().indexOf(q) !== -1 ||
-                 s.department_name.toLowerCase().indexOf(q) !== -1;
-        }).slice(0,25);
-        showStationDropdown(matches);
-      }, 200);
+        if (!_deptList.length) buildDeptList();
+        var matches = _deptList.filter(function(d) {
+          return d.department_name.toLowerCase().indexOf(q) !== -1;
+        });
+        showDeptDropdown(matches);
+      }, 150);
     });
 
     inp.addEventListener('blur',  function(){ setTimeout(function(){ dd.style.display='none'; }, 150); });

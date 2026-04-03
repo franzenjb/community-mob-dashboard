@@ -457,7 +457,12 @@
         </div>
         <div style="padding:0 0 2px 0">
           <div style="position:relative">
-            <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
+            <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off" style="padding-right:24px">
+            <button id="station-search-clear" style="
+              display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);
+              background:none;border:none;cursor:pointer;color:#aaa;font-size:14px;
+              line-height:1;padding:0;z-index:5
+            ">✕</button>
             <div id="station-dropdown" style="
               display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
               background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
@@ -1292,7 +1297,22 @@ function loadAllFilters() {
     if (!row || !inp || !_fieldMap.fireDept) return;
     row.style.display = '';   // reveal the row
     var timer;
+    var clearBtn = $('station-search-clear');
+
+    function updateClearBtn() {
+      clearBtn.style.display = inp.value.trim() ? '' : 'none';
+    }
+
+    clearBtn.addEventListener('click', function() {
+      inp.value = '';
+      dd.style.display = 'none';
+      _lastMatches = [];
+      clearBtn.style.display = 'none';
+      inp.focus();
+    });
+
     inp.addEventListener('input', function() {
+      updateClearBtn();
       clearTimeout(timer);
       timer = setTimeout(function() {
         _deptSearch = inp.value.trim();

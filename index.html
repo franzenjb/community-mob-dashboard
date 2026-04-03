@@ -1149,14 +1149,30 @@ require([
     return parts.length ? parts.join(' AND ') : '1=1';
   }
 
+  function buildRCWhere() {
+    // WHERE clause using RC_ fields for NERIS layers — same logic as buildWhere()
+    // but only the Division/Region/Chapter parts (no incident category or dept search)
+    var parts = [];
+    var keys = { division:'Division', region:'Region', chapter:'Chapter' };
+    Object.keys(keys).forEach(function(k) {
+      var v = _activeFilter[k];
+      if (v) parts.push(keys[k] + "='" + v.replace(/'/g,"''") + "'");
+    });
+    return parts.length ? parts.join(' AND ') : '1=1';
+  }
+
   function applyFilters() {
     var w = buildWhere();
+    var rcW = buildRCWhere();
     if (_flareLayer) _flareLayer.definitionExpression = w;
+    if (_stationsLayer) _stationsLayer.definitionExpression = rcW;
+    if (_deptsLayer)    _deptsLayer.definitionExpression    = rcW;
     FILTER_CHAIN.forEach(function(item) {
       if (_activeFilter[item.key]) item.sel.classList.add('has-value');
       else item.sel.classList.remove('has-value');
     });
     updateKpis();
+    updateStationKpi();
   }
 
   function zoomToFiltered(chainIndex) {
@@ -1612,15 +1628,19 @@ function loadAllFilters() {
     }
 
     function applyDeptFilter() {
+      var rcW = buildRCWhere();
       if (!_selectedDepts.length) {
-        _stationsLayer.definitionExpression = '1=1';
+        _stationsLayer.definitionExpression = rcW;
         updateStationKpi();
         return;
       }
-      var clauses = _selectedDepts.map(function(n){
+      var deptClauses = _selectedDepts.map(function(n){
         return "department_name = '" + n.replace(/'/g,"''") + "'";
       });
-      _stationsLayer.definitionExpression = clauses.join(' OR ');
+      var combined = rcW === '1=1'
+        ? deptClauses.join(' OR ')
+        : '(' + deptClauses.join(' OR ') + ') AND ' + rcW;
+      _stationsLayer.definitionExpression = combined;
       _stationsLayer.visible = true;
       var cb = $('cb-stations');
       if (cb) cb.checked = true;

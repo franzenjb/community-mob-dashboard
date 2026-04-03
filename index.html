@@ -1907,24 +1907,19 @@ function loadAllFilters() {
           var a = stHit.graphic.attributes;
           var h = '<div style="padding:0 0 12px">';
 
-          // Header — station name + dept badge
-          h += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px">';
-          h += '<div style="width:34px;height:34px;background:#111;border:2px solid #fbbf24;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">🚒</div>';
-          h += '<div style="flex:1;min-width:0">';
-          h += '<div style="font-size:17px;font-weight:900;color:#111;line-height:1.2;word-break:break-word">' + (a.station_name || 'Fire Station') + '</div>';
-          if (a.department_name) h += '<div style="font-size:12px;color:#C41E3A;font-weight:800;margin-top:4px;text-transform:uppercase;letter-spacing:.05em">' + a.department_name + '</div>';
-          h += '</div></div>';
-
-          // Headline stats grid
-          h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
-          function skpi(label, val, color) {
-            if (!val && val !== 0) return '';
-            return '<div style="background:#f8f8f8;border-radius:6px;padding:8px 10px;text-align:center">' +
-              '<div style="font-size:20px;font-weight:800;color:'+(color||'#111')+'">' + val + '</div>' +
-              '<div style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-top:2px">' + label + '</div></div>';
-          }
-          if (a.unit_count) h += skpi('Apparatus Units', a.unit_count, '#f97316');
+          // Header — centered station name + dept badge
+          h += '<div style="text-align:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f0f0f0">';
+          h += '<div style="font-size:18px;font-weight:900;color:#111;line-height:1.2;word-break:break-word;margin-bottom:4px">' + (a.station_name || 'Fire Station') + '</div>';
+          if (a.department_name) h += '<div style="font-size:11px;color:#C41E3A;font-weight:800;text-transform:uppercase;letter-spacing:.06em">' + a.department_name + '</div>';
           h += '</div>';
+
+          // Apparatus units — compact inline badge
+          if (a.unit_count) {
+            h += '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">';
+            h += '<span style="font-size:22px;font-weight:900;color:#f97316">' + a.unit_count + '</span>';
+            h += '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa">Apparatus Units</span>';
+            h += '</div>';
+          }
 
           // Location block
           h += '<div style="background:#fafafa;border-radius:6px;padding:10px;margin-bottom:12px">';

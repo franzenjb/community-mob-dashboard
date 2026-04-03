@@ -1897,6 +1897,22 @@ function loadAllFilters() {
             h += '</div>';
           }
 
+          // Red Cross hierarchy
+          if (a.Chapter || a.Region || a.Division) {
+            h += '<div style="background:#fdf5f6;border:1px solid #f5c6c6;border-radius:6px;padding:8px 10px;margin-bottom:10px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#C41E3A;margin-bottom:6px">American Red Cross</div>';
+            function rcRow(label, val) {
+              if (!val) return '';
+              return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid #fce7e7">' +
+                '<span style="color:#888;flex-shrink:0;margin-right:10px">' + label + '</span>' +
+                '<span style="font-weight:600;color:#111;text-align:right">' + val + '</span></div>';
+            }
+            h += rcRow('Chapter', a.Chapter);
+            h += rcRow('Region',  a.Region);
+            h += rcRow('Division', a.Division);
+            h += '</div>';
+          }
+
           // Website + address
           h += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:4px;font-size:11px;color:#888">';
           if (a.address_line_1) h += '<div>' + a.address_line_1 + (a.city ? ', ' + a.city : '') + (a.state ? ' ' + a.state : '') + (a.zip_code ? ' ' + a.zip_code : '') + '</div>';
@@ -1944,6 +1960,16 @@ function loadAllFilters() {
           if (a.city) h += srow('City', a.city + (a.state ? ', ' + a.state : '') + (a.zip_code ? ' ' + a.zip_code : ''));
           if (a.time_zone) h += srow('Time Zone', a.time_zone.replace('AMERICA ','').replace('_',' '));
           h += '</div>';
+
+          // Red Cross hierarchy
+          if (a.Chapter || a.Region || a.Division) {
+            h += '<div style="background:#fdf5f6;border:1px solid #f5c6c6;border-radius:6px;padding:8px 10px;margin-bottom:12px">';
+            h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#C41E3A;margin-bottom:6px">American Red Cross</div>';
+            if (a.Chapter)  h += srow('Chapter',  a.Chapter);
+            if (a.Region)   h += srow('Region',   a.Region);
+            if (a.Division) h += srow('Division', a.Division);
+            h += '</div>';
+          }
 
 
 

@@ -1488,7 +1488,7 @@ function loadAllFilters() {
       var doZoom = function() {
         if (pts.length === 1) {
           console.log('[ZOOM] goTo single point');
-          _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
+          _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { animate:false });
         } else {
           var xs = pts.map(function(s){ return s.x; });
           var ys = pts.map(function(s){ return s.y; });
@@ -1500,15 +1500,15 @@ function loadAllFilters() {
             spatialReference: { wkid:4326 }
           };
           console.log('[ZOOM] goTo extent:', JSON.stringify(ext));
-          _view.goTo({ extent: ext }, { duration:700 });
+          _view.goTo({ extent: ext }, { animate:false });
         }
       };
       if (_view.ready) {
         console.log('[ZOOM] view ready, zooming now');
-        doZoom();
+        setTimeout(doZoom, 100);
       } else {
         console.log('[ZOOM] view not ready, using when()');
-        _view.when(doZoom);
+        _view.when(function(){ setTimeout(doZoom, 100); });
       }
     }
 

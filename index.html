@@ -380,10 +380,6 @@
     <div class="kpi-num dim" id="dkpi-units">—</div>
     <div class="kpi-lbl">Apparatus Units</div>
   </div>
-  <div class="kpi-tile" style="--kc:#60a5fa;border-right:1px solid rgba(255,255,255,0.06)">
-    <div class="kpi-num dim" id="dkpi-pop">—</div>
-    <div class="kpi-lbl">Population</div>
-  </div>
   <div class="kpi-tile" style="--kc:#34d399">
     <div class="kpi-num dim" id="dkpi-ff">—</div>
     <div class="kpi-lbl">Firefighters</div>
@@ -1591,7 +1587,6 @@ function loadAllFilters() {
           var a = f.attributes;
           totStations += (a.station_count || 0);
           totUnits    += (a.unit_count    || 0);
-          totPop      += (a.population_protected || 0);
           totFF       += (a.firefighters_career_ft||0) + (a.firefighters_career_pt||0) + (a.firefighters_volunteer||0);
         });
         function setKpi(id, val) {
@@ -1602,7 +1597,6 @@ function loadAllFilters() {
         setKpi('dkpi-depts',    _selectedDepts.length);
         setKpi('dkpi-stations', totStations);
         setKpi('dkpi-units',    totUnits);
-        setKpi('dkpi-pop',      totPop);
         setKpi('dkpi-ff',       totFF);
       });
     }
@@ -1978,7 +1972,7 @@ function loadAllFilters() {
             deptLayer2.queryFeatures({
               where: "neris_id = '" + a.department_neris_id.replace(/'/g,"''") + "'",
               outFields: ['name','department_type','entity_type','station_count','unit_count',
-                          'population_protected','firefighters_career_ft','firefighters_career_pt',
+                          'firefighters_career_ft','firefighters_career_pt',
                           'firefighters_volunteer','ems_only_career_ft','ems_only_volunteer',
                           'fire_services','ems_services','investigation_services',
                           'assessment_caas_accredited','assessment_cpse_accredited',

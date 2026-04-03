@@ -528,13 +528,12 @@ require([
   "esri/widgets/Expand",
   "esri/widgets/Legend",
   "esri/PopupTemplate",
-  "esri/layers/CSVLayer",
   "esri/core/reactiveUtils"
 ], function(
   Map, MapView, FeatureLayer,
   UniqueValueRenderer, ClassBreaksRenderer,
   SimpleMarkerSymbol, SimpleFillSymbol,
-  Home, ScaleBar, Expand, Legend, PopupTemplate, CSVLayer, reactiveUtils
+  Home, ScaleBar, Expand, Legend, PopupTemplate, reactiveUtils
 ) {
 
   // ═══════════════════════════════════════════════════════════
@@ -546,7 +545,8 @@ require([
   // Reference layer URLs (from tract-profile-2)
   var SVI_URL      = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/8";
   var NRI_URL      = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0";
-  var STATIONS_URL = "/stations.csv";
+  var DEPARTMENTS_URL = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Fire_departments_-_NERIS/FeatureServer/0";
+  var STATIONS_URL    = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Fire_Stations_-_NERIS/FeatureServer/0";
   var COLOR_WITH    = '#22c55e';  // green — Fire WITH RC Notification
   var COLOR_WITHOUT = '#ef4444';  // red   — Fire WITHOUT RC Notification
 
@@ -1373,13 +1373,13 @@ function loadAllFilters() {
       if (cb) cb.addEventListener('change', function() { bl.visible = cb.checked; });
     });
 
-    // Fire Stations (NERIS CSV)
-    _stationsLayer = new CSVLayer({
+    // Fire Stations — AGOL Feature Layer (replaces CSVLayer)
+    _stationsLayer = new FeatureLayer({
       url: STATIONS_URL,
-      latitudeField: 'y', longitudeField: 'x',
       visible: false,
       minScale: 3000000,
       title: 'Fire Stations',
+      outFields: ['station_name','department_name','city','state','unit_count'],
       renderer: {
         type: 'simple',
         symbol: new SimpleMarkerSymbol({
@@ -1394,59 +1394,9 @@ function loadAllFilters() {
 
     $('cb-svi').addEventListener('change', function() { _sviLayer.visible = $('cb-svi').checked; });
     $('cb-nri').addEventListener('change', function() { _nriLayer.visible = $('cb-nri').checked; });
-    // Load station CSV into memory for instant client-side typeahead
-    var _stationData = [];   // [{station_name, department_name, city, state, x, y}]
 
-    // Proper RFC-4180 CSV parser — handles quoted fields with embedded commas
-    function parseCSV(txt) {
-      var rows = []; var row = []; var field = ''; var inQ = false;
-      txt = txt.replace(/^\uFEFF/, '');
-      for (var i = 0; i < txt.length; i++) {
-        var c = txt[i];
-        if (inQ) {
-          if (c === '"' && txt[i+1] === '"') { field += '"'; i++; }
-          else if (c === '"') { inQ = false; }
-          else { field += c; }
-        } else {
-          if (c === '"') { inQ = true; }
-          else if (c === ',') { row.push(field); field = ''; }
-          else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-          else if (c !== '\r') { field += c; }
-        }
-      }
-      if (field || row.length) { row.push(field); rows.push(row); }
-      return rows;
-    }
-
-    var _stationDataReady = false;
-    fetch('/stations.csv').then(function(r){ return r.text(); }).then(function(txt) {
-      txt = txt.replace(/\r/g, '');   // normalize CRLF → LF
-      var rows = parseCSV(txt);
-      if (!rows.length) return;
-      var headers = rows[0];
-      var iName = headers.indexOf('station_name');
-      var iDept = headers.indexOf('department_name');
-      var iCity = headers.indexOf('city');
-      var iSt   = headers.indexOf('state');
-      var iX    = headers.indexOf('x');
-      var iY    = headers.indexOf('y');
-      for (var i = 1; i < rows.length; i++) {
-        var cols = rows[i];
-        if (cols.length < 5) continue;
-        _stationData.push({
-          station_name:    (cols[iName] || '').trim(),
-          department_name: (cols[iDept] || '').trim(),
-          city:            (cols[iCity] || '').trim(),
-          state:           (cols[iSt]   || '').trim(),
-          x: parseFloat(cols[iX]),
-          y: parseFloat(cols[iY])
-        });
-      }
-      _stationDataReady = true;
-      updateStationKpi();
-      // If depts were selected before data loaded, zoom now
-      if (_selectedDepts.length) zoomToSelectedDepts();
-    });
+    // Dept list — queried from Departments FeatureLayer on first keystroke
+    var _stationDataReady = false;   // true once dept list is loaded
 
     $('cb-stations').addEventListener('change', function() {
       _stationsLayer.visible = $('cb-stations').checked;
@@ -1459,75 +1409,52 @@ function loadAllFilters() {
     var chipsEl    = $('dept-chips');
     var _selectedDepts = [];   // array of department_name strings
 
-    // Build sorted unique department list after CSV loads
+    // Department list — queried from Departments FeatureLayer
     var _deptList = [];
-    function buildDeptList() {
-      var map = {};
-      _stationData.forEach(function(s) {
-        var key = s.department_name;
-        if (!key) return;
-        if (!map[key]) map[key] = { department_name: key, state: s.state, count: 0 };
-        map[key].count++;
-      });
-      _deptList = Object.values(map).sort(function(a,b){
-        return a.department_name.localeCompare(b.department_name);
-      });
+    function buildDeptList(callback) {
+      if (_deptList.length) { if (callback) callback(); return; }
+      // Query unique dept names from the departments layer
+      var deptLayer = new FeatureLayer({ url: DEPARTMENTS_URL });
+      deptLayer.queryFeatures({
+        where: '1=1',
+        outFields: ['name','state','station_count'],
+        returnGeometry: false,
+        num: 2000,
+        orderByFields: ['name ASC']
+      }).then(function(result) {
+        _deptList = result.features.map(function(f) {
+          return {
+            department_name: f.attributes.name || '',
+            state: f.attributes.state || '',
+            count: f.attributes.station_count || 0
+          };
+        }).filter(function(d){ return d.department_name; });
+        _stationDataReady = true;
+        if (callback) callback();
+      }).catch(function(e){ console.warn('Dept query failed:', e); });
     }
 
     function zoomToSelectedDepts() {
-      console.log('[ZOOM] called. ready='+_stationDataReady+' depts='+_selectedDepts.length+' view='+!!_view);
-      if (!_stationDataReady || !_selectedDepts.length || !_view) {
-        console.log('[ZOOM] bailed: ready='+_stationDataReady+' depts='+_selectedDepts.length+' view='+!!_view);
-        return;
-      }
-      var pts = _stationData.filter(function(s){
-        return _selectedDepts.indexOf(s.department_name) !== -1 && !isNaN(s.x) && !isNaN(s.y);
+      if (!_selectedDepts.length || !_view) return;
+      // Use queryExtent on the stations FeatureLayer — works natively, no CSV needed
+      var clauses = _selectedDepts.map(function(n){
+        return "department_name = '" + n.replace(/'/g,"''") + "'";
       });
-      console.log('[ZOOM] pts found:', pts.length, 'for depts:', JSON.stringify(_selectedDepts));
-      if (!pts.length) return;
-      var doZoom = function() {
-        if (pts.length === 1) {
-          console.log('[ZOOM] goTo single point');
-          _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { animate:false });
-        } else {
-          var xs = pts.map(function(s){ return s.x; });
-          var ys = pts.map(function(s){ return s.y; });
-          var xpad = Math.max(0.02, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.05);
-          var ypad = Math.max(0.02, (Math.max.apply(null,ys) - Math.min.apply(null,ys)) * 0.05);
-          var ext = {
-            xmin: Math.min.apply(null,xs) - xpad, xmax: Math.max.apply(null,xs) + xpad,
-            ymin: Math.min.apply(null,ys) - ypad, ymax: Math.max.apply(null,ys) + ypad,
-            spatialReference: { wkid:4326 }
-          };
-          console.log('[ZOOM] goTo extent:', JSON.stringify(ext));
-          _view.goTo({ extent: ext }, { animate:false });
+      _stationsLayer.queryExtent({ where: clauses.join(' OR ') }).then(function(result) {
+        if (result && result.extent) {
+          _view.goTo(result.extent.expand(1.15), { animate: false });
         }
-      };
-      if (_view.ready) {
-        console.log('[ZOOM] view ready, zooming now');
-        setTimeout(doZoom, 100);
-      } else {
-        console.log('[ZOOM] view not ready, using when()');
-        _view.when(function(){ setTimeout(doZoom, 100); });
-      }
+      }).catch(function(e){ console.warn('queryExtent failed:', e); });
     }
 
     function updateStationKpi() {
       var el = $('kpi-stations');
-      if (!el) return;
-      if (!_stationDataReady) { el.textContent = '—'; el.className = 'kpi-num dim'; return; }
-      var expr = _stationsLayer ? _stationsLayer.definitionExpression : '1=1';
-      var count;
-      if (!expr || expr === '1=1') {
-        count = _stationData.length;
-      } else {
-        // Count from in-memory data matching selected depts
-        count = _stationData.filter(function(s){
-          return _selectedDepts.indexOf(s.department_name) !== -1;
-        }).length;
-      }
-      el.textContent = count.toLocaleString();
-      el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
+      if (!el || !_stationsLayer) return;
+      var expr = _stationsLayer.definitionExpression || '1=1';
+      _stationsLayer.queryFeatureCount({ where: expr }).then(function(count) {
+        el.textContent = count.toLocaleString();
+        el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
+      }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
     }
 
     function applyDeptFilter() {
@@ -1540,12 +1467,10 @@ function loadAllFilters() {
         return "department_name = '" + n.replace(/'/g,"''") + "'";
       });
       _stationsLayer.definitionExpression = clauses.join(' OR ');
-      // Make layer visible
       _stationsLayer.visible = true;
       var cb = $('cb-stations');
       if (cb) cb.checked = true;
       updateStationKpi();
-      // Zoom — if data ready go now, otherwise fetch callback will trigger it
       zoomToSelectedDepts();
     }
 
@@ -1657,11 +1582,12 @@ function loadAllFilters() {
       var q = inp.value.trim().toLowerCase();
       if (!q) { dd.style.display='none'; _lastMatches=[]; return; }
       _stationTimer = setTimeout(function() {
-        if (!_deptList.length) buildDeptList();
-        var matches = _deptList.filter(function(d) {
-          return d.department_name.toLowerCase().indexOf(q) !== -1;
+        buildDeptList(function() {
+          var matches = _deptList.filter(function(d) {
+            return d.department_name.toLowerCase().indexOf(q) !== -1;
+          });
+          showDeptDropdown(matches);
         });
-        showDeptDropdown(matches);
       }, 150);
     });
 

@@ -1234,15 +1234,15 @@ require([
     reloadChainFrom(changedIndex + 1);
 
     // Auto-show fire stations when any RC filter is selected
-    if (item.sel.value && _stationsLayer) {
+    if (_stationsLayer) {
       _stationsLayer.visible = true;
       var cbSt = $('cb-stations');
       if (cbSt) cbSt.checked = true;
-      // Re-run KPI after making layer visible so count reflects current filter
-      setTimeout(function() {
-        if (typeof updateStationKpi === 'function') updateStationKpi();
-      }, 300);
     }
+    // Delay KPI update so definitionExpression propagates first
+    setTimeout(function() {
+      if (typeof updateStationKpi === 'function') updateStationKpi();
+    }, 500);
 
     // Auto-enable the matching boundary layer when a filter is selected
     var bid = FILTER_TO_BOUNDARY[item.key];

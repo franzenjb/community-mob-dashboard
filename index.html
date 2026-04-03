@@ -372,6 +372,7 @@
     <div class="sb-section">
       <div class="sb-title">Layers</div>
 
+      <!-- Incident Data -->
       <div class="layer-group">
         <span class="layer-group-label">Incident Data</span>
         <div>
@@ -388,9 +389,40 @@
         </div>
       </div>
 
-      <div class="layer-group">
-        <span class="layer-group-label">ARC Boundaries</span>
-        <div>
+      <!-- Fire Department Search — standalone -->
+      <div class="layer-group" style="padding-bottom:6px">
+        <span class="layer-group-label">Fire Departments</span>
+        <div style="padding:4px 0 2px 0">
+          <div style="position:relative">
+            <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
+            <div id="station-dropdown" style="
+              display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
+              background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
+              max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+            "></div>
+          </div>
+          <div id="dept-chips" style="display:none;margin-top:5px;flex-wrap:wrap;gap:4px"></div>
+        </div>
+      </div>
+
+      <!-- Map Layers — collapsed accordion -->
+      <div class="layer-group" style="padding-bottom:4px">
+        <button id="acc-layers-btn" onclick="(function(){
+          var b=$('acc-layers-body'); var open=b.style.display!=='none';
+          b.style.display=open?'none':''; 
+          document.getElementById('acc-layers-arrow').textContent=open?'▸':'▾';
+        })()" style="
+          width:100%;background:none;border:none;padding:0;cursor:pointer;
+          display:flex;align-items:center;justify-content:space-between;
+          font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+          color:#888;margin-bottom:4px;
+        ">
+          <span>Map Layers</span>
+          <span id="acc-layers-arrow" style="font-size:11px;color:#aaa">▸</span>
+        </button>
+        <div id="acc-layers-body" style="display:none">
+          <!-- ARC Boundaries -->
+          <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:6px 0 3px">ARC Boundaries</div>
           <label class="layer-row">
             <input type="checkbox" id="cb-div" checked>
             <div class="layer-color-swatch" style="background:#7B2D8E;border-radius:2px"></div>
@@ -406,43 +438,30 @@
             <div class="layer-color-swatch" style="background:#C41E3A;border-radius:2px"></div>
             <span>Chapters</span>
           </label>
-        </div>
-      </div>
-
-      <div class="layer-group">
-        <span class="layer-group-label">Reference Layers</span>
-        <div id="reference-layers">
-          <label class="layer-row" id="lyr-svi">
-            <input type="checkbox" id="cb-svi">
-            <div class="layer-color-swatch" style="background: linear-gradient(135deg,#fde68a,#f97316,#dc2626)"></div>
-            <span>Social Vulnerability Index (SVI)</span>
-            <span id="svi-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-              color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-          </label>
-          <label class="layer-row" id="lyr-nri">
-            <input type="checkbox" id="cb-nri">
-            <div class="layer-color-swatch" style="background: linear-gradient(135deg,#bfdbfe,#6366f1,#312e81)"></div>
-            <span>National Risk Index (NRI)</span>
-            <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-              color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-          </label>
-          <label class="layer-row" id="lyr-stations">
-            <input type="checkbox" id="cb-stations">
-            <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
-            <span>Fire Stations (NERIS)</span>
-            <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
-              color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
-          </label>
-          <div id="station-search-row" style="display:none;padding:4px 0 2px 0">
-            <div style="position:relative">
-              <input type="text" id="station-search" class="fsel" placeholder="Search fire departments…" autocomplete="off">
-              <div id="station-dropdown" style="
-                display:none; position:absolute; left:0; right:0; top:100%; z-index:200;
-                background:#fff; border:1px solid #d8d8d8; border-top:none; border-radius:0 0 4px 4px;
-                max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.1);
-              "></div>
-            </div>
-            <div id="dept-chips" style="display:none;margin-top:5px;display:flex;flex-wrap:wrap;gap:4px"></div>
+          <!-- Reference Layers -->
+          <div style="font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;margin:8px 0 3px">Reference Layers</div>
+          <div id="reference-layers">
+            <label class="layer-row" id="lyr-svi">
+              <input type="checkbox" id="cb-svi">
+              <div class="layer-color-swatch" style="background: linear-gradient(135deg,#fde68a,#f97316,#dc2626)"></div>
+              <span>Social Vulnerability Index (SVI)</span>
+              <span id="svi-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+                color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+            </label>
+            <label class="layer-row" id="lyr-nri">
+              <input type="checkbox" id="cb-nri">
+              <div class="layer-color-swatch" style="background: linear-gradient(135deg,#bfdbfe,#6366f1,#312e81)"></div>
+              <span>National Risk Index (NRI)</span>
+              <span id="nri-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+                color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+            </label>
+            <label class="layer-row" id="lyr-stations">
+              <input type="checkbox" id="cb-stations">
+              <div class="layer-color-swatch" style="background:#111;border:1.5px solid #fbbf24;border-radius:2px"></div>
+              <span>Fire Stations (NERIS)</span>
+              <span id="stations-zoom-badge" style="display:none;margin-left:auto;font-size:9px;
+                color:#aaa;white-space:nowrap;font-style:italic">zoom in</span>
+            </label>
           </div>
         </div>
       </div>
@@ -1430,10 +1449,7 @@ function loadAllFilters() {
     });
 
     $('cb-stations').addEventListener('change', function() {
-      var on = $('cb-stations').checked;
-      _stationsLayer.visible = on;
-      $('station-search-row').style.display = on ? '' : 'none';
-      if (!on) { $('station-search').value = ''; dd.style.display = 'none'; _selectedDepts = []; renderChips(); _stationsLayer.definitionExpression = '1=1'; }
+      _stationsLayer.visible = $('cb-stations').checked;
     });
 
     // Department typeahead — multi-select with chips
@@ -1477,12 +1493,13 @@ function loadAllFilters() {
       } else if (pts.length > 1) {
         var xs = pts.map(function(s){ return s.x; });
         var ys = pts.map(function(s){ return s.y; });
+        var pad = Math.max(0.05, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.15);
         _view.goTo({
-          target: { type:'extent',
-            xmin: Math.min.apply(null,xs) - 0.1,
-            xmax: Math.max.apply(null,xs) + 0.1,
-            ymin: Math.min.apply(null,ys) - 0.1,
-            ymax: Math.max.apply(null,ys) + 0.1,
+          extent: {
+            xmin: Math.min.apply(null,xs) - pad,
+            xmax: Math.max.apply(null,xs) + pad,
+            ymin: Math.min.apply(null,ys) - pad,
+            ymax: Math.max.apply(null,ys) + pad,
             spatialReference: { wkid:4326 }
           }
         }, { duration:700 });

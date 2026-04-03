@@ -1973,9 +1973,9 @@ function loadAllFilters() {
 
           // ── RC block: left-accent, tight ──
           if (a.Chapter || a.Region || a.Division) {
-            h += '<div style="border-left:3px solid #C41E3A;margin:10px 14px 0;padding:6px 10px;background:#fdf5f6;border-radius:0 4px 4px 0">';
-            h += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#C41E3A;margin-bottom:4px">American Red Cross</div>';
-            function rcr(lbl,val){ return val ? '<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0"><span style="color:#999;margin-right:8px">'+lbl+'</span><span style="font-weight:600;text-align:right">'+val+'</span></div>' : ''; }
+            h += '<div style="border-left:3px solid #C41E3A;margin:6px 14px 0;padding:5px 10px;background:#fdf5f6;border-radius:0 4px 4px 0">';
+            h += '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#C41E3A;margin-bottom:3px">American Red Cross</div>';
+            function rcr(lbl,val){ return val ? '<div style="font-size:11px;padding:1px 0;line-height:1.4"><span style="color:#aaa">'+lbl+': </span><span style="font-weight:600">'+val+'</span></div>' : ''; }
             h += rcr('Chapter', a.Chapter) + rcr('Region', a.Region) + rcr('Division', a.Division);
             h += '</div>';
           }

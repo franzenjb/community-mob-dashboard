@@ -363,28 +363,7 @@
 </div>
 
 <!-- Dept KPI bar — slides down when dept filter active -->
-<div id="dept-kpi-bar" style="
-  display:none; background:#1a1f2e; border-top:1px solid rgba(255,255,255,0.08);
-  height:64px; flex-shrink:0; overflow-x:auto; scrollbar-width:none;
-  align-items:stretch;
-">
-  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
-    <div class="kpi-num dim" id="dkpi-depts">—</div>
-    <div class="kpi-lbl">Departments</div>
-  </div>
-  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
-    <div class="kpi-num dim" id="dkpi-stations">—</div>
-    <div class="kpi-lbl">Stations</div>
-  </div>
-  <div class="kpi-tile" style="--kc:#fbbf24;border-right:1px solid rgba(255,255,255,0.06)">
-    <div class="kpi-num dim" id="dkpi-units">—</div>
-    <div class="kpi-lbl">Apparatus Units</div>
-  </div>
-  <div class="kpi-tile" style="--kc:#34d399">
-    <div class="kpi-num dim" id="dkpi-ff">—</div>
-    <div class="kpi-lbl">Firefighters</div>
-  </div>
-</div>
+<div id="dept-kpi-bar" style="display:none!important"></div>
 
 <!-- Body -->
 <div class="app-body">
@@ -1037,26 +1016,37 @@ require([
       kpiBar.appendChild(tile);
     });
 
-    // Extra KPI: States affected
-    var tStates = document.createElement('div');
-    tStates.className = 'kpi-tile kpi-cat';
-    tStates.style.setProperty('--kc','#64748b');
-    tStates.innerHTML = '<div class="kpi-num dim" id="kpi-states">—</div><div class="kpi-lbl">States</div>';
-    kpiBar.appendChild(tStates);
-
-    // Extra KPI: Chapters
-    var tChaps = document.createElement('div');
-    tChaps.className = 'kpi-tile kpi-cat';
-    tChaps.style.setProperty('--kc','#64748b');
-    tChaps.innerHTML = '<div class="kpi-num dim" id="kpi-chaps">—</div><div class="kpi-lbl">Chapters</div>';
-    kpiBar.appendChild(tChaps);
-
     // Extra KPI: Fire Stations (filtered)
     var tStns = document.createElement('div');
     tStns.className = 'kpi-tile kpi-cat';
     tStns.style.setProperty('--kc','#fbbf24');
     tStns.innerHTML = '<div class="kpi-num dim" id="kpi-stations">—</div><div class="kpi-lbl"><span style="display:inline-block;width:8px;height:8px;background:#111;border:1.5px solid #fbbf24;border-radius:1px;margin-right:4px;vertical-align:middle"></span>Fire Stations</div>';
     kpiBar.appendChild(tStns);
+
+    // Dept KPI tiles — always in main bar, visible only when dept filter active
+    var tDepts = document.createElement('div');
+    tDepts.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDepts.style.cssText = '--kc:#fbbf24;display:none;border-left:2px solid rgba(251,191,36,0.3)';
+    tDepts.innerHTML = '<div class="kpi-num dim" id="dkpi-depts">—</div><div class="kpi-lbl">Departments</div>';
+    kpiBar.appendChild(tDepts);
+
+    var tDStations = document.createElement('div');
+    tDStations.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDStations.style.cssText = '--kc:#fbbf24;display:none';
+    tDStations.innerHTML = '<div class="kpi-num dim" id="dkpi-stations">—</div><div class="kpi-lbl">Stations</div>';
+    kpiBar.appendChild(tDStations);
+
+    var tDUnits = document.createElement('div');
+    tDUnits.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDUnits.style.cssText = '--kc:#fbbf24;display:none';
+    tDUnits.innerHTML = '<div class="kpi-num dim" id="dkpi-units">—</div><div class="kpi-lbl">Apparatus</div>';
+    kpiBar.appendChild(tDUnits);
+
+    var tDFF = document.createElement('div');
+    tDFF.className = 'kpi-tile kpi-cat kpi-dept-tile';
+    tDFF.style.cssText = '--kc:#34d399;display:none';
+    tDFF.innerHTML = '<div class="kpi-num dim" id="dkpi-ff">—</div><div class="kpi-lbl">Firefighters</div>';
+    kpiBar.appendChild(tDFF);
   }
 
   function updateKpis() {
@@ -1585,12 +1575,12 @@ function loadAllFilters() {
     }
 
     function updateDeptKpiBar() {
-      var bar = $('dept-kpi-bar');
+      var tiles = document.querySelectorAll('.kpi-dept-tile');
       if (!_selectedDepts.length) {
-        bar.style.display = 'none';
+        tiles.forEach(function(t){ t.style.display = 'none'; });
         return;
       }
-      bar.style.display = 'flex';
+      tiles.forEach(function(t){ t.style.display = ''; });
       // Query dept layer for selected depts
       var clauses = _selectedDepts.map(function(n){
         return "name = '" + n.replace(/'/g,"''") + "'";
@@ -1602,7 +1592,7 @@ function loadAllFilters() {
                     'firefighters_career_ft','firefighters_career_pt','firefighters_volunteer'],
         returnGeometry: false, num: 2000
       }).then(function(r) {
-        var totStations=0, totUnits=0, totPop=0, totFF=0;
+        var totStations=0, totUnits=0, totFF=0;
         r.features.forEach(function(f) {
           var a = f.attributes;
           totStations += (a.station_count || 0);

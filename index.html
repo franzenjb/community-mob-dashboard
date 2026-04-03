@@ -1479,28 +1479,40 @@ function loadAllFilters() {
       var clauses = _selectedDepts.map(function(n){
         return "department_name = '" + n.replace(/'/g,"''") + "'";
       });
-      _stationsLayer.definitionExpression = clauses.join(' OR ');
+      var expr = clauses.join(' OR ');
+      _stationsLayer.definitionExpression = expr;
 
-      // Zoom to combined extent of all selected depts
-      var pts = _stationData.filter(function(s){
-        return _selectedDepts.indexOf(s.department_name) !== -1 && !isNaN(s.x) && !isNaN(s.y);
+      // Make layer visible so queryExtent works
+      _stationsLayer.visible = true;
+      var cb = $('cb-stations');
+      if (cb) cb.checked = true;
+
+      // Use layer queryExtent — authoritative, works after definitionExpression is set
+      _stationsLayer.queryExtent({ where: expr }).then(function(result) {
+        if (result && result.extent) {
+          var ext = result.extent.expand(1.4);
+          _view.goTo(ext, { duration: 700 });
+        }
+      }).catch(function(err) {
+        // Fallback: compute from _stationData coords
+        var pts = _stationData.filter(function(s){
+          return _selectedDepts.indexOf(s.department_name) !== -1 && !isNaN(s.x) && !isNaN(s.y);
+        });
+        if (pts.length === 1) {
+          _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
+        } else if (pts.length > 1) {
+          var xs = pts.map(function(s){ return s.x; });
+          var ys = pts.map(function(s){ return s.y; });
+          var pad = Math.max(0.1, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.2);
+          _view.goTo({
+            extent: {
+              xmin: Math.min.apply(null,xs) - pad, xmax: Math.max.apply(null,xs) + pad,
+              ymin: Math.min.apply(null,ys) - pad, ymax: Math.max.apply(null,ys) + pad,
+              spatialReference: { wkid:4326 }
+            }
+          }, { duration:700 });
+        }
       });
-      if (pts.length === 1) {
-        _view.goTo({ center:[pts[0].x, pts[0].y], zoom:14 }, { duration:600 });
-      } else if (pts.length > 1) {
-        var xs = pts.map(function(s){ return s.x; });
-        var ys = pts.map(function(s){ return s.y; });
-        var pad = Math.max(0.05, (Math.max.apply(null,xs) - Math.min.apply(null,xs)) * 0.15);
-        _view.goTo({
-          extent: {
-            xmin: Math.min.apply(null,xs) - pad,
-            xmax: Math.max.apply(null,xs) + pad,
-            ymin: Math.min.apply(null,ys) - pad,
-            ymax: Math.max.apply(null,ys) + pad,
-            spatialReference: { wkid:4326 }
-          }
-        }, { duration:700 });
-      }
     }
 
     function renderChips() {

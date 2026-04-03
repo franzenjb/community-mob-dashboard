@@ -1147,6 +1147,16 @@ require([
     return parts.length ? parts.join(' AND ') : '1=1';
   }
 
+  function updateStationKpi() {
+    var el = $('kpi-stations');
+    if (!el || !_stationsLayer) return;
+    var rcW = buildRCWhere();
+    _stationsLayer.queryFeatureCount({ where: rcW }).then(function(count) {
+      el.textContent = count.toLocaleString();
+      el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
+    }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
+  }
+
   function applyFilters() {
     var w = buildWhere();
     var rcW = buildRCWhere();
@@ -1158,7 +1168,7 @@ require([
       else item.sel.classList.remove('has-value');
     });
     updateKpis();
-    if (typeof updateStationKpi === 'function') updateStationKpi();
+    updateStationKpi();
   }
 
   function zoomToFiltered(chainIndex) {
@@ -1649,16 +1659,6 @@ function loadAllFilters() {
           _view.goTo(result.extent.expand(1.15), { animate: false });
         }
       }).catch(function(e){ console.warn('queryExtent failed:', e); });
-    }
-
-    function updateStationKpi() {
-      var el = $('kpi-stations');
-      if (!el || !_stationsLayer) return;
-      var rcW = buildRCWhere();
-      _stationsLayer.queryFeatureCount({ where: rcW }).then(function(count) {
-        el.textContent = count.toLocaleString();
-        el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
-      }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
     }
 
     function updateDeptKpiBar() {

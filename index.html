@@ -522,12 +522,7 @@
   <div class="sidebar-right" id="sidebar-right">
     <div class="sr-header">
       <span class="sr-title">Feature Info</span>
-      <div style="display:flex;align-items:center;gap:3px">
-        <button id="pop-style-a" style="width:22px;height:22px;border:1.5px solid #C41E3A;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:#C41E3A;color:#fff">A</button>
-        <button id="pop-style-b" style="width:22px;height:22px;border:1.5px solid #ddd;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:#fff;color:#555">B</button>
-        <button id="pop-style-c" style="width:22px;height:22px;border:1.5px solid #ddd;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:#fff;color:#555">C</button>
-        <button class="sr-close" id="close-right">&#215;</button>
-      </div>
+      <button class="sr-close" id="close-right">&#215;</button>
     </div>
     <div class="sr-body" id="sr-body"></div>
   </div>
@@ -1169,12 +1164,14 @@ require([
     if (!_view || !_stationsLayer) return;
     var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
     var rcW = buildRCWhere();
-    // NERIS stations layer is public and has Division/Region/Chapter — always use for zoom
-    _stationsLayer.queryExtent({ where: rcW }).then(function(r) {
-      if (!r || !r.extent) return;
-      _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
-           .catch(function(){});
-    }).catch(function(){});
+    if (rcW === '1=1') return; // nothing selected, don't zoom
+    // Query with explicit where — don't rely on definitionExpression timing
+    _stationsLayer.queryExtent({ where: rcW, outSpatialReference: { wkid: 102100 } })
+      .then(function(r) {
+        if (!r || !r.extent) return;
+        _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
+             .catch(function(){});
+      }).catch(function(){});
   }
 
   function queryUnique(fieldName, whereClause) {
@@ -1333,69 +1330,24 @@ function loadAllFilters() {
   // STATION POPUP — three designs A / B / C
   // ═══════════════════════════════════════════════════════════
 
-  function setPopStyle(s) {
-    _popupStyle = s;
-    ['A','B','C'].forEach(function(x) {
-      var btn = document.getElementById('pop-style-' + x.toLowerCase());
-      if (!btn) return;
-      btn.style.background = (x === s) ? '#C41E3A' : '#fff';
-      btn.style.color      = (x === s) ? '#fff'    : '#555';
-    });
-    if (_lastStAttrs) renderStationPopup(_lastStAttrs, _lastDeptAttrs);
-  }
+  function initPopStyleButtons() {}  // no-op — single design
 
-  function initPopStyleButtons() {
-    ['a','b','c'].forEach(function(x) {
-      var btn = document.getElementById('pop-style-' + x);
-      if (btn) btn.addEventListener('click', function() { setPopStyle(x.toUpperCase()); });
-    });
-  }
-
-  /* ── Design A: clean white, RC in bordered box ── */
-  function stPopupA(a, d) {
-    var addr = [a.address, a.city ? (a.city + (a.state ? ', ' + stFull(a.state) : '')) : stFull(a.state), a.zip_code].filter(Boolean).join('<br>');
-    var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif;color:#111">';
-    // header
-    h += '<div style="background:#fff;border-bottom:3px solid #C41E3A;padding:14px 16px 10px">';
-    h += '<div style="font-size:15px;font-weight:700;color:#111;line-height:1.3">' + (a.station_name || 'Fire Station') + '</div>';
-    h += '<div style="font-size:12px;color:#555;margin-top:2px">' + (a.department_name || '') + '</div>';
-    h += '</div>';
-    // address + basic info
-    h += '<div style="padding:12px 16px;border-bottom:1px solid #eee">';
-    if (addr) h += '<div style="font-size:12px;color:#333;line-height:1.6;margin-bottom:8px">' + addr + '</div>';
-    var badges = [];
-    if (a.station_type) badges.push(a.station_type);
-    if (a.unit_count) badges.push(a.unit_count + ' unit' + (a.unit_count == 1 ? '' : 's'));
-    if (badges.length) h += '<div style="font-size:11px;color:#666">' + badges.join(' &nbsp;·&nbsp; ') + '</div>';
-    h += '</div>';
-    // RC section
-    h += deptDetail(d, 'A');
-    // IDs
-    h += '<div style="padding:10px 16px;background:#f9f9f9;border-top:1px solid #eee">';
-    if (a.neris_id) h += '<div style="font-size:11px;color:#555">Station NERIS ID: <span style="font-family:monospace;color:#333">' + a.neris_id + '</span></div>';
-    if (a.department_neris_id) h += '<div style="font-size:11px;color:#555;margin-top:2px">Department NERIS ID: <span style="font-family:monospace;color:#333">' + a.department_neris_id + '</span></div>';
-    h += '</div>';
-    h += '</div>';
-    return h;
-  }
-
-  /* ── Design B: red header, white body ── */
+  /* ── Station popup ── */
   function stPopupB(a, d) {
-    var addr = [a.address, a.city ? (a.city + (a.state ? ', ' + stFull(a.state) : '')) : stFull(a.state), a.zip_code].filter(Boolean).join('  ');
+    var addr = [a.address, [a.city, stFull(a.state)].filter(Boolean).join(', '), a.zip_code].filter(Boolean).join('  ');
     var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif">';
-    // red header
-    h += '<div style="background:#C41E3A;padding:14px 16px 12px">';
-    h += '<div style="font-size:15px;font-weight:700;color:#fff;line-height:1.3">' + (a.station_name || 'Fire Station') + '</div>';
-    h += '<div style="font-size:12px;color:rgba(255,255,255,0.85);margin-top:3px">' + (a.department_name || '') + '</div>';
-    if (a.unit_count) h += '<div style="display:inline-block;margin-top:6px;padding:2px 8px;background:rgba(255,255,255,0.2);border-radius:10px;font-size:11px;color:#fff">' + a.unit_count + ' unit' + (a.unit_count==1?'':'s') + '</div>';
+    // red header — centered
+    h += '<div style="background:#C41E3A;padding:16px 16px 14px;text-align:center">';
+    h += '<div style="font-size:16px;font-weight:800;color:#fff;line-height:1.3">' + (a.station_name || 'Fire Station') + '</div>';
+    if (a.unit_count) h += '<div style="margin-top:6px;font-size:13px;font-weight:700;color:#fff">' + a.unit_count + ' unit' + (a.unit_count==1?'':'s') + '</div>';
     h += '</div>';
-    // address row
-    h += '<div style="padding:10px 16px;border-bottom:1px solid #eee;font-size:12px;color:#333">';
-    if (addr) h += addr;
-    if (a.station_type) h += '<div style="margin-top:4px;font-size:11px;color:#888">' + a.station_type + '</div>';
+    // address + type
+    h += '<div style="padding:10px 16px;border-bottom:1px solid #eee;font-size:12px;color:#333;text-align:center">';
+    if (addr) h += '<div>' + addr + '</div>';
+    if (a.station_type) h += '<div style="margin-top:3px;font-size:11px;color:#888">' + a.station_type + '</div>';
     h += '</div>';
     // RC section
-    h += deptDetail(d, 'B');
+    h += deptDetail(d);
     // IDs
     h += '<div style="padding:8px 16px 12px;border-top:1px solid #eee">';
     if (a.neris_id) h += '<div style="font-size:11px;color:#777">Station NERIS ID: <span style="font-family:monospace">' + a.neris_id + '</span></div>';
@@ -1404,72 +1356,24 @@ function loadAllFilters() {
     return h;
   }
 
-  /* ── Design C: dark slate header, table layout ── */
-  function stPopupC(a, d) {
-    var h = '<div style="font-family:\'Avenir Next\',\'Segoe UI\',sans-serif">';
-    // dark header
-    h += '<div style="background:#1e293b;padding:14px 16px 12px">';
-    h += '<div style="display:flex;align-items:flex-start;justify-content:space-between">';
-    h += '<div style="font-size:15px;font-weight:700;color:#fff;line-height:1.3;flex:1">' + (a.station_name || 'Fire Station') + '</div>';
-    if (a.unit_count) h += '<div style="flex-shrink:0;margin-left:8px;padding:2px 8px;background:#C41E3A;border-radius:10px;font-size:11px;color:#fff;white-space:nowrap">' + a.unit_count + (a.unit_count==1?' unit':' units') + '</div>';
-    h += '</div>';
-    h += '<div style="font-size:12px;color:#94a3b8;margin-top:4px">' + (a.department_name || '') + '</div>';
-    h += '</div>';
-    // table
-    h += '<div style="padding:12px 16px">';
-    h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
-    function tr(label, val) {
-      if (!val) return '';
-      return '<tr><td style="padding:4px 0;color:#888;width:45%;vertical-align:top">' + label + '</td><td style="padding:4px 0;color:#111;font-weight:500">' + val + '</td></tr>';
-    }
-    var fullAddr = [a.address].filter(Boolean).join('');
-    var cityStateZip = [a.city, a.state ? (stFull(a.state) + (a.zip_code ? ' ' + a.zip_code : '')) : a.zip_code].filter(Boolean).join(', ');
-    h += tr('Address', fullAddr);
-    h += tr('', cityStateZip);
-    h += tr('Type', a.station_type);
-    h += '</table>';
-    h += '</div>';
-    // RC section
-    h += deptDetail(d, 'C');
-    // IDs
-    h += '<div style="padding:8px 16px 12px;background:#f8fafc;border-top:1px solid #e2e8f0">';
-    h += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-    if (a.neris_id) h += '<tr><td style="color:#64748b;padding:2px 0;width:55%">Station NERIS ID</td><td style="font-family:monospace;color:#334155">' + a.neris_id + '</td></tr>';
-    if (a.department_neris_id) h += '<tr><td style="color:#64748b;padding:2px 0">Department NERIS ID</td><td style="font-family:monospace;color:#334155">' + a.department_neris_id + '</td></tr>';
-    h += '</table></div></div>';
-    return h;
-  }
-
-  function deptDetail(d, style) {
-    // RC hierarchy — shared across all three styles
+  function deptDetail(d) {
     var chapter  = (d && d.Chapter)  || '';
     var region   = (d && d.Region)   || '';
     var division = (d && d.Division) || '';
     if (!chapter && !region && !division) {
-      return '<div style="padding:10px 16px;font-size:11px;color:#aaa;font-style:italic">Red Cross chapter info loading…</div>';
+      return '<div style="padding:10px 16px;font-size:11px;color:#aaa;font-style:italic;text-align:center">Red Cross chapter info loading…</div>';
     }
-    var bg   = style === 'C' ? '#f8fafc'  : style === 'B' ? '#f5f5f5' : '#fafafa';
-    var bdr  = style === 'C' ? '#e2e8f0'  : '#e0e0e0';
-    var h = '<div style="padding:10px 16px;background:' + bg + ';border-top:1px solid ' + bdr + ';border-bottom:1px solid ' + bdr + '">';
-    h += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#888;margin-bottom:6px">Red Cross</div>';
-    h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
-    function rcRow(label, val) {
-      if (!val) return '';
-      return '<tr><td style="padding:3px 0;color:#777;width:45%;vertical-align:top">' + label + '</td><td style="padding:3px 0;color:#111;font-weight:500">' + val + '</td></tr>';
-    }
-    h += rcRow('Chapter', chapter);
-    h += rcRow('Region', region);
-    h += rcRow('Division', division);
-    h += '</table></div>';
+    var h = '<div style="padding:12px 16px;background:#f5f5f5;border-top:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;text-align:center">';
+    h += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#555;margin-bottom:8px">Red Cross</div>';
+    if (chapter)  h += '<div style="font-size:13px;font-weight:700;color:#111;line-height:1.4">' + chapter + '</div>';
+    if (region)   h += '<div style="font-size:12px;color:#333;margin-top:2px">' + region + '</div>';
+    if (division) h += '<div style="font-size:11px;color:#555;margin-top:2px">' + division + '</div>';
+    h += '</div>';
     return h;
   }
 
   function renderStationPopup(a, d) {
-    var html;
-    if (_popupStyle === 'B')      html = stPopupB(a, d);
-    else if (_popupStyle === 'C') html = stPopupC(a, d);
-    else                           html = stPopupA(a, d);
-    $('sr-body').innerHTML = html;
+    $('sr-body').innerHTML = stPopupB(a, d);
   }
 
   function fetchDeptForStation(deptNerisId) {

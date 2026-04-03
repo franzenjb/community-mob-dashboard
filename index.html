@@ -1887,11 +1887,8 @@ function loadAllFilters() {
             h += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:6px">Department</div>';
             h += '<div style="display:flex;align-items:center;justify-content:space-between;background:#fdf5f6;border:1px solid #f5c6c6;border-radius:6px;padding:8px 10px">';
             h += '<span style="font-size:12px;font-weight:600;color:#111">' + a.department_name + '</span>';
-            h += '<button onclick="(function(){' +
-              'var inp=document.getElementById('station-search');' +
-              'inp.value='' + (a.department_name||'').replace(/'/g,"\'") + '';' +
-              'inp.dispatchEvent(new Event('input',{bubbles:true}));' +
-              '})()" style="font-size:10px;padding:3px 8px;background:#C41E3A;color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;margin-left:8px">Search →</button>';
+            var safeDeptName = (a.department_name||'').replace(/"/g,'&quot;');
+            h += '<button data-dept="' + safeDeptName + '" class="dept-search-btn" style="font-size:10px;padding:3px 8px;background:#C41E3A;color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;margin-left:8px">Search →</button>';
             h += '</div></div>';
           }
 
@@ -1915,6 +1912,18 @@ function loadAllFilters() {
       var open  = body.style.display !== 'none';
       body.style.display = open ? 'none' : '';
       arrow.textContent  = open ? '▸' : '▾';
+    });
+
+    // ── Dept search button in station popup ──────────────────────
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.classList.contains('dept-search-btn')) {
+        var dept = e.target.getAttribute('data-dept');
+        if (dept) {
+          var inp = $('station-search');
+          inp.value = dept;
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
     });
 
     // ── Map Layers accordion ─────────────────────────────────────

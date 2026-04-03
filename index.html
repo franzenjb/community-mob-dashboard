@@ -1157,17 +1157,13 @@ require([
     }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
   }
 
-  var COORD_BOUNDS = 'x >= -125 AND x <= -50 AND y >= 15 AND y <= 75';
-  function withBounds(expr) {
-    return expr ? '(' + expr + ') AND ' + COORD_BOUNDS : COORD_BOUNDS;
-  }
 
   function applyFilters() {
     var w = buildWhere();
     var rcW = buildRCWhere();
     if (_flareLayer) _flareLayer.definitionExpression = w;
-    if (_stationsLayer) _stationsLayer.definitionExpression = withBounds(rcW);
-    if (_deptsLayer)    _deptsLayer.definitionExpression    = withBounds(rcW);
+    if (_stationsLayer) _stationsLayer.definitionExpression = rcW;
+    if (_deptsLayer)    _deptsLayer.definitionExpression    = rcW;
     FILTER_CHAIN.forEach(function(item) {
       if (_activeFilter[item.key]) item.sel.classList.add('has-value');
       else item.sel.classList.remove('has-value');
@@ -1182,10 +1178,11 @@ require([
     var rcW = buildRCWhere();
     if (rcW === '1=1') return;
     _stationsLayer.queryExtent({ where: rcW }).then(function(r) {
+      console.log('queryExtent result:', JSON.stringify(r && r.extent ? {xmin:r.extent.xmin,ymin:r.extent.ymin,xmax:r.extent.xmax,ymax:r.extent.ymax} : null));
       if (!r || !r.extent) return;
       _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
            .catch(function(){});
-    }).catch(function(){});
+    }).catch(function(e){ console.error('queryExtent error:', e); });
   }
 
   function queryUnique(fieldName, whereClause) {
@@ -1698,7 +1695,7 @@ function loadAllFilters() {
     function applyDeptFilter() {
       var rcW = buildRCWhere();
       if (!_selectedDepts.length) {
-        _stationsLayer.definitionExpression = withBounds(rcW);
+        _stationsLayer.definitionExpression = rcW;
         updateStationKpi();
         return;
       }
@@ -1708,7 +1705,7 @@ function loadAllFilters() {
       var combined = rcW === '1=1'
         ? deptClauses.join(' OR ')
         : '(' + deptClauses.join(' OR ') + ') AND ' + rcW;
-      _stationsLayer.definitionExpression = withBounds(combined);
+      _stationsLayer.definitionExpression = combined;
       _stationsLayer.visible = true;
       var cb = $('cb-stations');
       if (cb) cb.checked = true;

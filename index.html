@@ -1892,15 +1892,118 @@ function loadAllFilters() {
             h += '</div></div>';
           }
 
-          // Station IDs
-          h += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:4px">';
+          // NERIS IDs footer
+          h += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:8px">';
           if (a.neris_id) h += '<div style="font-size:10px;color:#bbb;font-family:monospace;margin-bottom:2px">Station: ' + a.neris_id + '</div>';
           if (a.department_neris_id) h += '<div style="font-size:10px;color:#bbb;font-family:monospace">Dept: ' + a.department_neris_id + '</div>';
           h += '</div>';
 
+          // Department details placeholder — populated async below
+          h += '<div id="sr-dept-detail" style="margin-top:10px">' +
+               '<div style="font-size:11px;color:#bbb;text-align:center;padding:8px">Loading department data…</div>' +
+               '</div>';
+
           h += '</div>';
           $('sr-body').innerHTML = h;
           $('sidebar-right').classList.add('open');
+
+          // Async: query Departments layer by department_neris_id
+          if (a.department_neris_id) {
+            var deptLayer2 = new FeatureLayer({ url: DEPARTMENTS_URL });
+            deptLayer2.queryFeatures({
+              where: "neris_id = '" + a.department_neris_id.replace(/'/g,"''") + "'",
+              outFields: ['name','department_type','entity_type','station_count','unit_count',
+                          'population_protected','firefighters_career_ft','firefighters_career_pt',
+                          'firefighters_volunteer','ems_only_career_ft','ems_only_volunteer',
+                          'fire_services','ems_services','investigation_services',
+                          'assessment_caas_accredited','assessment_cpse_accredited',
+                          'shift_count','shift_duration','website'],
+              returnGeometry: false, num: 1
+            }).then(function(result) {
+              var el = $('sr-dept-detail');
+              if (!el) return;
+              if (!result.features.length) { el.innerHTML = ''; return; }
+              var d = result.features[0].attributes;
+              var totalFF = (d.firefighters_career_ft||0) + (d.firefighters_career_pt||0) + (d.firefighters_volunteer||0);
+              var dh = '<div style="border-top:2px solid #C41E3A;padding-top:10px">';
+              dh += '<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#C41E3A;margin-bottom:8px">Department Profile</div>';
+
+              // Dept type badge
+              if (d.department_type || d.entity_type) {
+                dh += '<div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">';
+                if (d.department_type) dh += '<span style="font-size:10px;padding:2px 8px;background:#fdf5f6;border:1px solid #f5c6c6;border-radius:10px;color:#C41E3A;font-weight:600">' + d.department_type + '</span>';
+                if (d.entity_type) dh += '<span style="font-size:10px;padding:2px 8px;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;color:#4338ca">' + d.entity_type + '</span>';
+                dh += '</div>';
+              }
+
+              // Stats grid
+              dh += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+              function dstat(label, val, color) {
+                if (!val) return '';
+                return '<div style="background:#f8f8f8;border-radius:5px;padding:6px 8px;text-align:center">' +
+                  '<div style="font-size:16px;font-weight:800;color:'+(color||'#111')+'">' + val.toLocaleString() + '</div>' +
+                  '<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#999;margin-top:1px">' + label + '</div></div>';
+              }
+              if (d.station_count) dh += dstat('Stations', d.station_count, '#C41E3A');
+              if (d.unit_count) dh += dstat('Apparatus', d.unit_count, '#f97316');
+              if (d.population_protected) dh += dstat('Pop. Protected', d.population_protected, '#2D6DB4');
+              if (totalFF) dh += dstat('Firefighters', totalFF, '#16a34a');
+              dh += '</div>';
+
+              // Staffing detail
+              if (totalFF > 0) {
+                var parts = [];
+                if (d.firefighters_career_ft) parts.push(d.firefighters_career_ft + ' career FT');
+                if (d.firefighters_career_pt) parts.push(d.firefighters_career_pt + ' career PT');
+                if (d.firefighters_volunteer) parts.push(d.firefighters_volunteer + ' volunteer');
+                if (parts.length) dh += '<div style="font-size:11px;color:#666;margin-bottom:8px">' + parts.join(' &nbsp;·&nbsp; ') + '</div>';
+              }
+
+              // Services tags
+              function tags(str, bg, border, color) {
+                if (!str) return '';
+                var items = str.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+                if (!items.length) return '';
+                return '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">' +
+                  items.map(function(s){ return '<span style="font-size:9.5px;padding:2px 5px;background:'+bg+';border:1px solid '+border+';border-radius:8px;color:'+color+'">'+s+'</span>'; }).join('') +
+                  '</div>';
+              }
+              if (d.fire_services) {
+                dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:3px">Fire Services</div>';
+                dh += tags(d.fire_services, '#fdf5f6', '#f5c6c6', '#C41E3A');
+              }
+              if (d.ems_services) {
+                dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:3px">EMS</div>';
+                dh += tags(d.ems_services, '#eff6ff', '#bfdbfe', '#2D6DB4');
+              }
+              if (d.investigation_services) {
+                dh += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;margin-bottom:3px">Investigation</div>';
+                dh += tags(d.investigation_services, '#f0fdf4', '#bbf7d0', '#16a34a');
+              }
+
+              // Accreditation + shifts
+              var bits = [];
+              if (d.assessment_caas_accredited) bits.push('CAAS');
+              if (d.assessment_cpse_accredited) bits.push('CPSE');
+              if (bits.length || d.shift_count) {
+                dh += '<div style="font-size:11px;color:#555;margin-top:4px">';
+                if (bits.length) dh += '<span style="color:#16a34a;font-weight:600">✓ ' + bits.join(' &nbsp;✓ ') + ' Accredited</span> &nbsp;';
+                if (d.shift_count) dh += d.shift_count + ' shift' + (d.shift_count!==1?'s':'') + (d.shift_duration ? ', '+d.shift_duration+'hr':'');
+                dh += '</div>';
+              }
+
+              // Website
+              if (d.website) {
+                dh += '<div style="margin-top:8px"><a href="' + d.website + '" target="_blank" style="font-size:11px;color:#C41E3A;text-decoration:none">' +
+                  d.website.replace('https://','').replace('http://','').replace(/\/$/,'') + ' →</a></div>';
+              }
+
+              dh += '</div>';
+              el.innerHTML = dh;
+            }).catch(function() {
+              var el = $('sr-dept-detail'); if (el) el.innerHTML = '';
+            });
+          }
         }
       });
     });

@@ -1634,14 +1634,16 @@ function loadAllFilters() {
           d.count + ' station' + (d.count !== 1 ? 's' : '') + '</div></div>';
         item.addEventListener('mousedown', function(e) {
           e.preventDefault();
+          console.log('[SELECT] dept clicked:', d.department_name);
           if (!already) {
             _selectedDepts.push(d.department_name);
           } else {
             _selectedDepts = _selectedDepts.filter(function(n){ return n !== d.department_name; });
           }
+          console.log('[SELECT] _selectedDepts now:', JSON.stringify(_selectedDepts));
           renderChips();
           applyDeptFilter();
-          showDeptDropdown(null, true);   // re-render list in place, keep open
+          showDeptDropdown(null, true);
         });
         item.addEventListener('mouseover', function(){ item.style.background='#fdf5f6'; });
         item.addEventListener('mouseout',  function(){ item.style.background = already ? '#fdf5f6' : ''; });

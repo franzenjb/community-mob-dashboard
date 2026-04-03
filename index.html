@@ -1460,17 +1460,19 @@ function loadAllFilters() {
     var chipsEl    = $('dept-chips');
     var _selectedDepts = [];   // array of department_name strings
 
-    // Department list — queried from Departments FeatureLayer
-    var _deptList = [];
-    function buildDeptList(callback) {
-      if (_deptList.length) { if (callback) callback(); return; }
-      // Query unique dept names from the departments layer
-      var deptLayer = new FeatureLayer({ url: DEPARTMENTS_URL });
-      deptLayer.queryFeatures({
-        where: '1=1',
+    // Department search — live query per keystroke against Departments FeatureLayer
+    var _deptList = [];   // cached results for last query
+    var _deptQueryLayer = new FeatureLayer({ url: DEPARTMENTS_URL });
+    function buildDeptList(callback, searchTerm) {
+      // Live search: query for matching depts on every keystroke
+      var where = searchTerm
+        ? "UPPER(name) LIKE UPPER('%" + searchTerm.replace(/'/g,"''") + "%')"
+        : "1=1";
+      _deptQueryLayer.queryFeatures({
+        where: where,
         outFields: ['name','state','station_count'],
         returnGeometry: false,
-        num: 2000,
+        num: 50,
         orderByFields: ['name ASC']
       }).then(function(result) {
         _deptList = result.features.map(function(f) {
@@ -1675,12 +1677,9 @@ function loadAllFilters() {
       if (!q) { dd.style.display='none'; _lastMatches=[]; return; }
       _stationTimer = setTimeout(function() {
         buildDeptList(function() {
-          var matches = _deptList.filter(function(d) {
-            return d.department_name.toLowerCase().indexOf(q) !== -1;
-          });
-          showDeptDropdown(matches);
-        });
-      }, 150);
+          showDeptDropdown(_deptList);
+        }, q);
+      }, 300);
     });
 
     // Only close on blur if clicking outside the dropdown entirely

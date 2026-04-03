@@ -1151,19 +1151,23 @@ require([
     var el = $('kpi-stations');
     if (!el || !_stationsLayer) return;
     var rcW = buildRCWhere();
-    _stationsLayer.queryFeatureCount({ where: rcW }).then(function(count) {
+    var q = rcW === '1=1' ? BASE_BOUNDS : '(' + rcW + ') AND ' + BASE_BOUNDS;
+    _stationsLayer.queryFeatureCount({ where: q }).then(function(count) {
       el.textContent = count.toLocaleString();
       el.className = 'kpi-num' + (count === 0 ? ' dim' : '');
     }).catch(function(){ el.textContent = '—'; el.className = 'kpi-num dim'; });
   }
 
 
+  var BASE_BOUNDS = 'x > -125 AND x < -50 AND y > 15 AND y < 75';
+
   function applyFilters() {
     var w = buildWhere();
     var rcW = buildRCWhere();
+    var rcWithBounds = rcW === '1=1' ? BASE_BOUNDS : '(' + rcW + ') AND ' + BASE_BOUNDS;
     if (_flareLayer) _flareLayer.definitionExpression = w;
-    if (_stationsLayer) _stationsLayer.definitionExpression = rcW;
-    if (_deptsLayer)    _deptsLayer.definitionExpression    = rcW;
+    if (_stationsLayer) _stationsLayer.definitionExpression = rcWithBounds;
+    if (_deptsLayer)    _deptsLayer.definitionExpression    = rcWithBounds;
     FILTER_CHAIN.forEach(function(item) {
       if (_activeFilter[item.key]) item.sel.classList.add('has-value');
       else item.sel.classList.remove('has-value');
@@ -1173,16 +1177,26 @@ require([
   }
 
   function zoomToFiltered(chainIndex) {
-    if (!_view || !_stationsLayer) return;
+    if (!_view) return;
     var expand = chainIndex <= 1 ? 1.08 : chainIndex <= 2 ? 1.05 : 1.04;
-    var rcW = buildRCWhere();
-    if (rcW === '1=1') return;
-    _stationsLayer.queryExtent({ where: rcW }).then(function(r) {
-      console.log('queryExtent result:', JSON.stringify(r && r.extent ? {xmin:r.extent.xmin,ymin:r.extent.ymin,xmax:r.extent.xmax,ymax:r.extent.ymax} : null));
+
+    // Use RC boundary polygon layer — clean geometry, right source for geography extent
+    // Pick most specific active boundary layer
+    var boundaryId = _activeFilter.chapter ? 'chap' : _activeFilter.region ? 'reg' : 'div';
+    var bl = _boundaryLayers[boundaryId];
+    if (!bl) return;
+
+    var parts = [];
+    if (_activeFilter.division) parts.push("Division='" + _activeFilter.division.replace(/'/g,"''") + "'");
+    if (_activeFilter.region)   parts.push("Region='"   + _activeFilter.region.replace(/'/g,"''")   + "'");
+    if (_activeFilter.chapter)  parts.push("Chapter='"  + _activeFilter.chapter.replace(/'/g,"''")  + "'");
+    if (!parts.length) return;
+
+    bl.queryExtent({ where: parts.join(' AND ') }).then(function(r) {
       if (!r || !r.extent) return;
       _view.goTo(r.extent.expand(expand), { duration: 750, easing: 'ease-in-out' })
            .catch(function(){});
-    }).catch(function(e){ console.error('queryExtent error:', e); });
+    }).catch(function(){});
   }
 
   function queryUnique(fieldName, whereClause) {
@@ -1531,6 +1545,7 @@ function loadAllFilters() {
       minScale: 0,
       title: 'Fire Stations',
       outFields: ['*'],
+      definitionExpression: 'x > -125 AND x < -50 AND y > 15 AND y < 75',
       renderer: {
         type: 'simple',
         symbol: new PictureMarkerSymbol({
@@ -1556,6 +1571,7 @@ function loadAllFilters() {
       visible: false,
       title: 'Fire Departments',
       outFields: ['*'],
+      definitionExpression: 'x > -125 AND x < -50 AND y > 15 AND y < 75',
       renderer: {
         type: 'simple',
         symbol: new PictureMarkerSymbol({

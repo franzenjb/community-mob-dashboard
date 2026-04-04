@@ -148,22 +148,17 @@
   
     /* ── TRAY HANDLE BAR — always visible between map and tray ── */
     #tray-handle {
-      flex-shrink: 0; width: 100%; height: 28px;
-      background: var(--bg2); border-top: 1px solid var(--dim); border-bottom: none;
-      display: flex; align-items: center; justify-content: flex-end;
-      padding-right: 14px; gap: 6px;
+      flex-shrink: 0; width: 100%; height: 32px;
+      background: #fff; border-top: 1px solid #ccc; border-bottom: none;
+      display: flex; align-items: center; justify-content: center;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
-      font-family: inherit; font-size: 10px; font-weight: 700;
-      letter-spacing: 0.15em; text-transform: uppercase;
-      color: var(--muted); user-select: none;
-      transition: background 0.15s, color 0.15s;
+      font-family: inherit; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: #111; user-select: none;
+      transition: background 0.1s;
     }
-    #tray-handle:active { background: #1c1c1c; }
-    #tray-handle.open-state {
-      background: #1a1a1a; border-top-color: #555;
-      color: var(--text); font-size: 11px; letter-spacing: 0.2em;
-      justify-content: center;
-    }
+    #tray-handle:active { background: #eee; }
+    #tray-handle.open-state { background: #fff; border-top-color: #ccc; color: #111; }
     #tray { transition: height 0.28s cubic-bezier(0.4,0,0.2,1),
                         min-height 0.28s cubic-bezier(0.4,0,0.2,1),
                         padding 0.28s cubic-bezier(0.4,0,0.2,1); }
@@ -190,7 +185,7 @@
   </div>
 
   <!-- TRAY HANDLE — always visible, never inside collapsing tray -->
-  <button id="tray-handle" onclick="toggleTray()"><span id="tray-handle-text">▼ MENU</span></button>
+  <button id="tray-handle" onclick="toggleTray()"><span id="tray-handle-text">▼ CLOSE</span></button>
 
   <!-- TRAY -->
   <div id="tray">
@@ -2031,7 +2026,7 @@ function toggleTray() {
   var label  = document.getElementById('tray-handle-text');
   tray.classList.toggle('collapsed', _trayCollapsed);
   handle.classList.toggle('open-state', _trayCollapsed);
-  label.textContent = _trayCollapsed ? '▲  OPEN' : '▼ MENU';
+  label.textContent = _trayCollapsed ? '▲ OPEN' : '▼ CLOSE';
 }
 
 function copyUrl() {

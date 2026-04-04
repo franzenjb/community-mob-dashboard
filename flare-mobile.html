@@ -82,30 +82,6 @@
       overflow: hidden;
     }
 
-    /* ── COLLAPSE HANDLE — tab sticking out of top-right of tray ── */
-    #tray-handle {
-      position: absolute;
-      top: -22px; right: 12px;
-      width: 48px; height: 22px;
-      background: var(--bg2);
-      border: 1px solid var(--dim);
-      border-bottom: none;
-      border-radius: 4px 4px 0 0;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; z-index: 10;
-      font-family: inherit; font-size: 11px; font-weight: 700;
-      color: var(--muted); letter-spacing: 0.05em;
-      -webkit-tap-highlight-color: transparent;
-      transition: color 0.1s, border-color 0.1s, background 0.1s;
-    }
-    #tray-handle:hover { color: var(--text); border-color: #555; background: #1c1c1c; }
-    #tray-handle:active { background: #222; }
-    #tray.collapsed #tray-handle {
-      top: -22px; /* stays visible above collapsed tray */
-      border-bottom: 1px solid var(--dim);
-      border-radius: 4px 4px 0 0;
-    }
-
     /* ── TRAY HEADER ── */
     #tray-header {
       display: flex; align-items: center; gap: var(--gap); flex-shrink: 0; height: 26px;

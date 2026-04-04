@@ -72,6 +72,38 @@
       display: flex; flex-direction: column;
       padding: 6px var(--gap) var(--gap); gap: 6px;
       flex-shrink: 0; border-top: 1px solid var(--dim);
+      position: relative;
+      transition: height 0.28s cubic-bezier(0.4,0,0.2,1),
+                  min-height 0.28s cubic-bezier(0.4,0,0.2,1),
+                  padding 0.28s cubic-bezier(0.4,0,0.2,1);
+    }
+    #tray.collapsed {
+      height: 0; min-height: 0; padding: 0;
+      overflow: hidden;
+    }
+
+    /* ── COLLAPSE HANDLE — tab sticking out of top-right of tray ── */
+    #tray-handle {
+      position: absolute;
+      top: -22px; right: 12px;
+      width: 48px; height: 22px;
+      background: var(--bg2);
+      border: 1px solid var(--dim);
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 10;
+      font-family: inherit; font-size: 11px; font-weight: 700;
+      color: var(--muted); letter-spacing: 0.05em;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.1s, border-color 0.1s, background 0.1s;
+    }
+    #tray-handle:hover { color: var(--text); border-color: #555; background: #1c1c1c; }
+    #tray-handle:active { background: #222; }
+    #tray.collapsed #tray-handle {
+      top: -22px; /* stays visible above collapsed tray */
+      border-bottom: 1px solid var(--dim);
+      border-radius: 4px 4px 0 0;
     }
 
     /* ── TRAY HEADER ── */
@@ -213,6 +245,7 @@
 
   <!-- TRAY -->
   <div id="tray">
+    <button id="tray-handle" onclick="toggleTray()">▲</button>
     <div id="tray-header">
       <button class="hdr-btn" onclick="showHelp()">?</button>
       <div id="depth-label">INCIDENTS</div>
@@ -1987,7 +2020,7 @@ var LAYERS = [
   [
     { main:'LOCATE',    sub:'me',      action: function(){ locateMe(); } },
     { main:'CLEAR ALL', sub:'reset',   action: function(){ mobileClearAll(); } },
-    { main:'BASEMAP',   sub:'toggle',  action: function(){ cycleBasemap(); } },
+    { main:'THEME',     sub:'light/dark', action: function(){ toggleTheme(); } },
     { main:'FLARE v2',  sub:'desktop', action: function(){ window.open('https://flare-v2-red.vercel.app/','_blank'); } },
     { main:'SHARE',     sub:'url',     action: function(){ copyUrl(); } },
     { main:'HUB',       sub:'back',    action: function(){ window.location.href='https://arc-mobile-ui.vercel.app/orbital-launcher.html'; } },
@@ -2034,13 +2067,21 @@ function locateMe() {
   }, function(){ toast('Location unavailable'); });
 }
 
-var _basemaps = ['dark-gray-vector','streets-navigation-vector','satellite','oceans'];
-var _basemapIdx = 0;
-function cycleBasemap() {
-  _basemapIdx = (_basemapIdx + 1) % _basemaps.length;
+var _isDark = true;
+function toggleTheme() {
+  _isDark = !_isDark;
   var v = window._flare('view');
-  if (v && v.map) v.map.basemap = _basemaps[_basemapIdx];
-  toast(_basemaps[_basemapIdx]);
+  if (v && v.map) v.map.basemap = _isDark ? 'dark-gray-vector' : 'gray-vector';
+  toast(_isDark ? 'Dark theme' : 'Light theme');
+}
+
+var _trayCollapsed = false;
+function toggleTray() {
+  _trayCollapsed = !_trayCollapsed;
+  var tray   = document.getElementById('tray');
+  var handle = document.getElementById('tray-handle');
+  tray.classList.toggle('collapsed', _trayCollapsed);
+  handle.textContent = _trayCollapsed ? '▲' : '▼';
 }
 
 function copyUrl() {

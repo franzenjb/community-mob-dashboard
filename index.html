@@ -243,7 +243,53 @@
       background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px;
     }
     @keyframes shimmer { to { background-position: -200% 0; } }
-  </style>
+  
+    /* ── LIGHT THEME ── */
+    html.light {
+      --bg:   #f5f0eb;
+      --bg2:  #ede8e3;
+      --dim:  #ccc;
+      --muted:#777;
+      --text: #1a1a1a;
+    }
+    html.light .esri-view { filter: invert(1) hue-rotate(180deg); }
+    html.light .esri-view canvas { filter: invert(1) hue-rotate(180deg); }
+    html.light #mob-header, html.light .header, html.light header { background: var(--red); }
+    html.light .btn.map-btn { background: #ddd; }
+    html.light .btn { background: var(--bg2); }
+    html.light .btn.nav { background: #e0dbd6; border-color: #999; }
+    html.light .loading-overlay { background: rgba(245,240,235,0.95); }
+    html.light .loading-msg { color: #999; }
+    html.light .spinner { border-color: #ccc; border-top-color: var(--red); }
+    html.light #toast { background: rgba(245,240,235,0.95); }
+    
+    /* ── TOGGLE CONTROLS ── */
+    .toggle-bar {
+      position: fixed; top: 48px; right: 8px; z-index: 100;
+      display: flex; gap: 4px;
+    }
+    .toggle-btn {
+      width: 32px; height: 32px; border-radius: 4px;
+      background: rgba(20,20,20,0.7); border: 1px solid #444;
+      color: #ccc; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      backdrop-filter: blur(4px);
+    }
+    html.light .toggle-btn { background: rgba(245,240,235,0.7); border-color: #bbb; color: #555; }
+    .toggle-btn:active { opacity: 0.7; }
+    #tray-toggle-arrow {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      z-index: 100; width: 48px; height: 20px; border-radius: 8px 8px 0 0;
+      background: rgba(20,20,20,0.8); border: 1px solid #444; border-bottom: none;
+      color: #ccc; font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    html.light #tray-toggle-arrow { background: rgba(245,240,235,0.8); border-color: #bbb; color: #555; }
+    #tray.collapsed { display: none !important; }
+    #tray.collapsed ~ #toast { bottom: 12px !important; }
+      </style>
 </head>
 <body>
 
@@ -2173,5 +2219,46 @@ function loadAllFilters() {
 
 });
 </script>
+
+  <script>
+    // ── THEME TOGGLE ──
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isLight = html.classList.toggle('light');
+      localStorage.setItem('flare-theme', isLight ? 'light' : 'dark');
+      document.getElementById('theme-toggle').textContent = isLight ? '🌙' : '☀️';
+    }
+    // restore
+    if (localStorage.getItem('flare-theme') === 'light') {
+      document.documentElement.classList.add('light');
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('theme-toggle');
+        if (btn) btn.textContent = '🌙';
+      });
+    }
+
+    // ── MENU TOGGLE ──
+    function toggleMenu() {
+      const tray = document.getElementById('tray') || document.getElementById('left-wrap');
+      const arrow = document.getElementById('tray-toggle-arrow');
+      const menuBtn = document.getElementById('menu-toggle');
+      if (!tray) return;
+      const hidden = tray.classList.toggle('collapsed');
+      localStorage.setItem('flare-menu-hidden', hidden ? '1' : '0');
+      if (arrow) arrow.style.display = hidden ? 'flex' : 'none';
+      if (menuBtn) menuBtn.textContent = hidden ? '▲' : '▼';
+    }
+    // restore
+    if (localStorage.getItem('flare-menu-hidden') === '1') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const tray = document.getElementById('tray') || document.getElementById('left-wrap');
+        const arrow = document.getElementById('tray-toggle-arrow');
+        const menuBtn = document.getElementById('menu-toggle');
+        if (tray) tray.classList.add('collapsed');
+        if (arrow) arrow.style.display = 'flex';
+        if (menuBtn) menuBtn.textContent = '▲';
+      });
+    }
+  </script>
 </body>
 </html>
